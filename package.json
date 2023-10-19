@@ -1,0 +1,39 @@
+{
+	"name": "@mjljm/node-effect-lib",
+	"exports": {
+		"./*": {
+			"import": "./src/*.ts"
+		}
+	},
+	"devDependencies": {
+		"@effect/platform-node": "0.24.0",
+		"@html-eslint/eslint-plugin": "0.19.1",
+		"@html-eslint/parser": "0.19.1",
+		"@tsconfig/node20": "20.1.2",
+		"@tsconfig/strictest": "2.0.2",
+		"@types/eslint": "8.44.5",
+		"@types/eslint-config-prettier": "6.11.2",
+		"@types/eslint__js": "8.42.2",
+		"@types/node": "20.8.6",
+		"@typescript-eslint/eslint-plugin": "^6.8.0",
+		"@typescript-eslint/parser": "^6.8.0",
+		"effect": "2.0.0-next.49",
+		"eslint": "^8.51.0",
+		"eslint-config-prettier": "^9.0.0",
+		"eslint-plugin-markdown": "3.0.1",
+		"eslint-plugin-yml": "1.10.0",
+		"prettier": "3.0.3",
+		"terser": "^5.22.0",
+		"typescript": "5.2.2",
+		"vite": "4.4.11"
+	},
+	"type": "module",
+	"packageManager": "pnpm@8.9.2",
+	"scripts": {
+		"build": "vite build"
+	},
+	"dependencies": {
+		"@mjljm/js-lib": "workspace:^",
+		"jsunescape": "1.0.0"
+	}
+}
