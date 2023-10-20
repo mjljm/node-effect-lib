@@ -8,7 +8,7 @@ export class IoUrlError extends Data.TaggedError('IoUrlError')<{
 	message: string;
 }> {}
 
-const implementation = {
+const implementation = () => ({
 	/**
 	 * Port of Node Js's url.fileURLToPath function
 	 * @param url See Node Js's url.fileURLToPath function
@@ -19,10 +19,11 @@ const implementation = {
 			try: () => fileURLToPath(url),
 			catch: (e) => new IoUrlError({ message: `fileURLToPath: ${(e as Error).message}` })
 		})
-};
+});
 
-export type Interface = typeof implementation;
+// type Interface = typeof implementation works but leads to verbose type display
+export interface Interface extends Readonly<ReturnType<typeof implementation>> {}
 
 export const Tag = Context.Tag<Interface>(Symbol.for('@mjljm/node-effect-lib/io-url.ts'));
 
-export const live = Layer.succeed(Tag, implementation);
+export const live = Layer.succeed(Tag, implementation());
