@@ -1,4 +1,4 @@
-import { FunctionPortError } from '@mjljm/effect-lib/errors';
+import { FunctionPortError } from '@mjljm/effect-lib/Errors';
 import { Context, Effect, Layer } from 'effect';
 import { fileURLToPath } from 'node:url';
 

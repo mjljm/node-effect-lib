@@ -1,7 +1,7 @@
 import * as FileSystem from '@effect/platform/FileSystem';
-import { FunctionPortError } from '@mjljm/effect-lib/errors';
-import * as IoFs from '@mjljm/node-effect-lib/io-fs';
-import * as IoPath from '@mjljm/node-effect-lib/io-path';
+import { FunctionPortError } from '@mjljm/effect-lib/Errors';
+import * as IoFs from '@mjljm/node-effect-lib/IoFs';
+import * as IoPath from '@mjljm/node-effect-lib/IoPath';
 import {
 	Context,
 	Effect,
