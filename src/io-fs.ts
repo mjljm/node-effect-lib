@@ -1,5 +1,5 @@
 import * as PlatformNodeFs from '@effect/platform-node/FileSystem';
-import * as Context from 'effect/Context';
+import { Context } from 'effect';
 
 export const Tag = PlatformNodeFs.FileSystem;
 export interface Interface extends Context.Tag.Service<typeof Tag> {}

@@ -1,5 +1,5 @@
 import * as PlatformNodePath from '@effect/platform-node/Path';
-import * as Context from 'effect/Context';
+import { Context } from 'effect';
 
 export const Tag = PlatformNodePath.Path;
 export interface Interface extends Context.Tag.Service<typeof Tag> {}

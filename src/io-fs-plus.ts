@@ -1,22 +1,22 @@
 import * as FileSystem from '@effect/platform/FileSystem';
+import { FunctionPortError } from '@mjljm/effect-lib/errors';
 import * as IoFs from '@mjljm/node-effect-lib/io-fs';
 import * as IoPath from '@mjljm/node-effect-lib/io-path';
-import * as Context from 'effect/Context';
-import * as Data from 'effect/Data';
-import * as Effect from 'effect/Effect';
-import * as E from 'effect/Either';
-import { pipe } from 'effect/Function';
-import * as Layer from 'effect/Layer';
-import * as O from 'effect/Option';
-import * as Predicate from 'effect/Predicate';
-import * as RA from 'effect/ReadonlyArray';
-import * as Stream from 'effect/Stream';
+import {
+	Context,
+	Effect,
+	Either,
+	Layer,
+	Option,
+	Predicate,
+	ReadonlyArray,
+	Stream,
+	String,
+	pipe
+} from 'effect';
 import type * as NodeFs from 'node:fs';
 import * as NodeFsPromises from 'node:fs/promises';
-
-export class IoFsPlusError extends Data.TaggedError('IoFsPlusError')<{
-	message: string;
-}> {}
+import * as os from 'node:os';
 
 export interface FileInfo {
 	readonly fullName: string;
@@ -27,33 +27,34 @@ export interface FileInfo {
 
 const readDirectoryWithInfo =
 	(ioFs: IoFs.Interface, ioPath: IoPath.Interface) =>
-	(path: string, options?: FileSystem.ReadDirectoryOptions) =>
-		pipe(
-			ioFs.readDirectory(path, options),
-			Effect.flatMap((files) =>
-				pipe(
-					files,
-					RA.map((relativeName) =>
-						pipe(ioPath.join(path, relativeName), (fullName) =>
-							pipe(
-								ioFs.stat(fullName),
-								Effect.map(
-									(stat) =>
-										({
-											fullName,
-											baseName: ioPath.basename(fullName),
-											dirName: ioPath.dirname(fullName),
-											stat
-										}) as FileInfo
-								)
-							)
+	(
+		path: string,
+		options?: FileSystem.ReadDirectoryOptions,
+		filesExclude: Predicate.Predicate<string> = () => false,
+		dirsExclude: Predicate.Predicate<string> = () => false
+	) =>
+		Effect.flatMap(ioFs.readDirectory(path, options), (files) =>
+			pipe(
+				files,
+				ReadonlyArray.map((relativeName) =>
+					pipe(ioPath.join(path, relativeName), (fullName) =>
+						Effect.map(ioFs.stat(fullName), (stat) =>
+							(stat.type === 'Directory' && dirsExclude(fullName)) ||
+							(stat.type === 'File' && filesExclude(fullName))
+								? Option.none()
+								: Option.some({
+										fullName,
+										baseName: ioPath.basename(fullName),
+										dirName: ioPath.dirname(fullName),
+										stat
+								  } as FileInfo)
 						)
-					),
-					Effect.allWith({ concurrency: 'unbounded' })
-				)
+					)
+				),
+				Effect.allWith({ concurrency: 'unbounded' }),
+				Effect.map(ReadonlyArray.compact)
 			)
 		);
-
 const implementation = (ioFs: IoFs.Interface, ioPath: IoPath.Interface) => ({
 	/**
 	 * Port of Node js fsPromises.watch function - Only the function that returns FileChangeInfo<string>'s has been ported.
@@ -65,7 +66,13 @@ const implementation = (ioFs: IoFs.Interface, ioPath: IoPath.Interface) => ({
 	watch: (filename: string, options?: NodeFs.WatchOptions | BufferEncoding) =>
 		Stream.fromAsyncIterable(
 			NodeFsPromises.watch(filename, options),
-			(e) => new IoFsPlusError({ message: `watch: ${(e as Error).message}` })
+			(e) =>
+				new FunctionPortError({
+					originalError: e,
+					originalFunctionName: 'fsPromises.watch',
+					moduleName: import.meta.url,
+					libraryName: 'node-effect-lib'
+				})
 		),
 
 	/**
@@ -75,37 +82,103 @@ const implementation = (ioFs: IoFs.Interface, ioPath: IoPath.Interface) => ({
 	 * @returns an object containing the file's complete name, base name, dir name and stats.
 	 */
 	readDirectoryWithInfo: readDirectoryWithInfo(ioFs, ioPath),
+
+	/**
+	 * Reads the directory tree upward starting at path until either stopPredicate returns true or the user's home directory is reached.
+	 * @param path The start path (must be a directory path, not a file path)
+	 * @param stopPredicate Function that receives all non filtered files of the currently read directory and returns an effectful true to stop the search, or an effectful false to continue
+	 * @param filesExclude A predicate function that receives a filename and returns true to keep it, false to filter it out.
+	 * @returns
+	 */
+	readDirectoriesUpwardUntil: <C, E>(
+		path: string,
+		stopPredicate: (files: Array<FileInfo>) => Effect.Effect<C, E, boolean>,
+		filesExclude: Predicate.Predicate<string> = () => false
+	) =>
+		Effect.gen(function* (_) {
+			const relativePath = ioPath.relative(os.homedir(), path);
+			const distance = pipe(relativePath, String.startsWith('..'))
+				? -1
+				: pipe(
+						relativePath,
+						String.split(ioPath.sep),
+						// Handle to===from and front and trailing slashes
+						ReadonlyArray.filter((s) => s !== ''),
+						ReadonlyArray.length
+				  );
+			return yield* _(
+				pipe(
+					Effect.iterate(
+						{ path, distance, found: false, first: true },
+						{
+							while: (sCurrent) => sCurrent.distance >= 0 && !sCurrent.found,
+							body: (sIn) =>
+								pipe(sIn.first ? sIn.path : ioPath.join(sIn.path, '..'), (pathUp) =>
+									pipe(
+										readDirectoryWithInfo(ioFs, ioPath)(
+											pathUp,
+											{ recursive: false },
+											filesExclude,
+											() => true
+										),
+										Effect.flatMap(stopPredicate),
+										Effect.map((found) => ({
+											path: pathUp,
+											distance: sIn.distance - 1,
+											found,
+											first: false
+										}))
+									)
+								)
+						}
+					),
+					Effect.map((sLast) => (sLast.found ? Option.some(sLast.path) : Option.none()))
+				)
+			);
+		}),
+
 	/**
 	 * Reads recursively the contents of a directory. Only directories that fulfill the predicate are opened recursively. Much faster than reading all subdirectories and filtering afterwards.
 	 * @param path The path of the directory to read
-	 * @param f The predicate function to apply. Receives the directory path as input
+	 * @param filesExclude A predicate function that receives a filename and returns true to keep it, false to filter it out.
+	 * @param dirsExclude A predicate function that receives a directory name and returns true to keep it, false to filter it out.
 	 * @returns
 	 */
-	readDirRecursivelyWithFilter: (path: string, f: Predicate.Predicate<string>) =>
+	readDirRecursivelyWithFilters: (
+		path: string,
+		filesExclude: Predicate.Predicate<string> = () => false,
+		dirsExclude: Predicate.Predicate<string> = () => false
+	) =>
 		Effect.map(
 			Effect.iterate(
-				{ paths: [path], projectConfigs: RA.empty<FileInfo>() },
 				{
-					while: (sInit) => sInit.paths.length > 0,
-					body: (sInit) =>
+					paths: dirsExclude(path) ? ReadonlyArray.empty<string>() : [path],
+					projectConfigs: ReadonlyArray.empty<FileInfo>()
+				},
+				{
+					while: (sCurrent) => sCurrent.paths.length > 0,
+					body: (sIn) =>
 						pipe(
-							sInit.paths,
-							RA.filterMap((path) =>
-								f(path)
-									? O.some(readDirectoryWithInfo(ioFs, ioPath)(path, { recursive: false }))
-									: O.none()
+							sIn.paths,
+							ReadonlyArray.map((path) =>
+								readDirectoryWithInfo(ioFs, ioPath)(
+									path,
+									{ recursive: false },
+									filesExclude,
+									dirsExclude
+								)
 							),
 							Effect.allWith({ concurrency: 'unbounded' }),
 							Effect.map((files) =>
 								pipe(
 									files,
-									RA.flatten,
-									RA.partitionMap((file) =>
-										file.stat.type === 'Directory' ? E.left(file.fullName) : E.right(file)
+									ReadonlyArray.flatten,
+									ReadonlyArray.partitionMap((file) =>
+										file.stat.type === 'Directory' ? Either.left(file.fullName) : Either.right(file)
 									),
 									(t) => ({
 										paths: t[0],
-										projectConfigs: RA.appendAll(sInit.projectConfigs, t[1])
+										projectConfigs: ReadonlyArray.appendAll(sIn.projectConfigs, t[1])
 									})
 								)
 							)

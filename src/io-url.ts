@@ -1,12 +1,6 @@
-import * as Context from 'effect/Context';
-import * as Data from 'effect/Data';
-import * as Effect from 'effect/Effect';
-import * as Layer from 'effect/Layer';
+import { FunctionPortError } from '@mjljm/effect-lib/errors';
+import { Context, Effect, Layer } from 'effect';
 import { fileURLToPath } from 'node:url';
-
-export class IoUrlError extends Data.TaggedError('IoUrlError')<{
-	message: string;
-}> {}
 
 const implementation = () => ({
 	/**
@@ -17,7 +11,13 @@ const implementation = () => ({
 	fileURLToPath: (url: Parameters<typeof fileURLToPath>[0]) =>
 		Effect.try({
 			try: () => fileURLToPath(url),
-			catch: (e) => new IoUrlError({ message: `fileURLToPath: ${(e as Error).message}` })
+			catch: (e) =>
+				new FunctionPortError({
+					originalError: e,
+					originalFunctionName: 'url.fileURLToPath',
+					moduleName: import.meta.url,
+					libraryName: 'node-effect-lib'
+				})
 		})
 });
 
