@@ -1,6 +1,7 @@
 import * as FileSystem from '@effect/platform/FileSystem';
 import { FunctionPortError } from '@mjljm/effect-lib/Errors';
 import * as IoFs from '@mjljm/node-effect-lib/IoFs';
+import * as IoOs from '@mjljm/node-effect-lib/IoOs';
 import * as IoPath from '@mjljm/node-effect-lib/IoPath';
 import {
 	Context,
@@ -16,7 +17,6 @@ import {
 } from 'effect';
 import type * as NodeFs from 'node:fs';
 import * as NodeFsPromises from 'node:fs/promises';
-import * as os from 'node:os';
 
 export interface FileInfo {
 	readonly fullName: string;
@@ -55,7 +55,7 @@ const readDirectoryWithInfo =
 				Effect.map(ReadonlyArray.compact)
 			)
 		);
-const implementation = (ioFs: IoFs.Interface, ioPath: IoPath.Interface) => ({
+const implementation = (ioFs: IoFs.Interface, ioPath: IoPath.Interface, ioOs: IoOs.Interface) => ({
 	/**
 	 * Port of Node js fsPromises.watch function - Only the function that returns FileChangeInfo<string>'s has been ported.
 	 * @param filename The file or directory to watch
@@ -96,7 +96,7 @@ const implementation = (ioFs: IoFs.Interface, ioPath: IoPath.Interface) => ({
 		filesExclude: Predicate.Predicate<string> = () => false
 	) =>
 		Effect.gen(function* (_) {
-			const relativePath = ioPath.relative(os.homedir(), path);
+			const relativePath = ioPath.relative(ioOs.homeDir(), path);
 			const distance = pipe(relativePath, String.startsWith('..'))
 				? -1
 				: pipe(
@@ -192,13 +192,14 @@ const implementation = (ioFs: IoFs.Interface, ioPath: IoPath.Interface) => ({
 // type Interface = typeof implementation works but leads to verbose type display
 export interface Interface extends Readonly<ReturnType<typeof implementation>> {}
 
-export const Tag = Context.Tag<Interface>(Symbol.for('@mjljm/node-effect-lib/io-fs-plus.ts'));
+export const Tag = Context.Tag<Interface>(Symbol.for('@mjljm/node-effect-lib/IoFsPlus.ts'));
 
 export const live = Layer.effect(
 	Tag,
 	Effect.gen(function* (_) {
 		const ioFs = yield* _(IoFs.Tag);
 		const ioPath = yield* _(IoPath.Tag);
-		return implementation(ioFs, ioPath);
+		const ioOs = yield* _(IoOs.Tag);
+		return implementation(ioFs, ioPath, ioOs);
 	})
 );
