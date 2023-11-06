@@ -107,33 +107,31 @@ const implementation = (ioFs: IoFs.Interface, ioPath: IoPath.Interface, ioOs: Io
 						ReadonlyArray.length
 				  );
 			return yield* _(
-				pipe(
-					Effect.iterate(
-						{ path, distance, found: false, first: true },
-						{
-							while: (sCurrent) => sCurrent.distance >= 0 && !sCurrent.found,
-							body: (sIn) =>
-								pipe(sIn.first ? sIn.path : ioPath.join(sIn.path, '..'), (pathUp) =>
-									pipe(
-										readDirectoryWithInfo(ioFs, ioPath)(
-											pathUp,
-											{ recursive: false },
-											filesExclude,
-											() => true
-										),
-										Effect.flatMap(stopPredicate),
-										Effect.map((found) => ({
-											path: pathUp,
-											distance: sIn.distance - 1,
-											found,
-											first: false
-										}))
-									)
+				Effect.iterate(
+					{ path, distance, found: false, first: true },
+					{
+						while: (sCurrent) => sCurrent.distance >= 0 && !sCurrent.found,
+						body: (sIn) =>
+							pipe(sIn.first ? sIn.path : ioPath.join(sIn.path, '..'), (pathUp) =>
+								pipe(
+									readDirectoryWithInfo(ioFs, ioPath)(
+										pathUp,
+										{ recursive: false },
+										filesExclude,
+										() => true
+									),
+									Effect.flatMap(stopPredicate),
+									Effect.map((found) => ({
+										path: pathUp,
+										distance: sIn.distance - 1,
+										found,
+										first: false
+									}))
 								)
-						}
-					),
-					Effect.map((sLast) => (sLast.found ? Option.some(sLast.path) : Option.none()))
-				)
+							)
+					}
+				),
+				Effect.map((sLast) => (sLast.found ? Option.some(sLast.path) : Option.none()))
 			);
 		}),
 
