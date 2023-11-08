@@ -1,5 +1,7 @@
 import * as FileSystem from '@effect/platform/FileSystem';
 import { FunctionPortError } from '@mjljm/effect-lib/Errors';
+import { iterateFullEffect } from '@mjljm/effect-lib/effect-plus/Effect';
+import { PredicateEffect } from '@mjljm/effect-lib/effect-plus/Predicate';
 import * as IoFs from '@mjljm/node-effect-lib/IoFs';
 import * as IoOs from '@mjljm/node-effect-lib/IoOs';
 import * as IoPath from '@mjljm/node-effect-lib/IoPath';
@@ -86,13 +88,13 @@ const implementation = (ioFs: IoFs.Interface, ioPath: IoPath.Interface, ioOs: Io
 	/**
 	 * Reads the directory tree upward starting at path until either stopPredicate returns true or the user's home directory is reached.
 	 * @param path The start path (must be a directory path, not a file path)
-	 * @param stopPredicate Function that receives all non filtered files of the currently read directory and returns an effectful true to stop the search, or an effectful false to continue
+	 * @param condition Function that receives all files (after filetring) of the currently read directory and returns an effectful false to stop the search, or an effectful true to continue
 	 * @param filesExclude A predicate function that receives a filename and returns true to keep it, false to filter it out.
 	 * @returns
 	 */
-	readDirectoriesUpwardUntil: <C, E>(
+	readDirectoriesUpwardWhile: <R, E>(
 		path: string,
-		stopPredicate: (files: Array<FileInfo>) => Effect.Effect<C, E, boolean>,
+		condition: PredicateEffect<Array<FileInfo>, R, E>,
 		filesExclude: Predicate.Predicate<string> = () => false
 	) =>
 		Effect.gen(function* (_) {
@@ -107,31 +109,26 @@ const implementation = (ioFs: IoFs.Interface, ioPath: IoPath.Interface, ioOs: Io
 						ReadonlyArray.length
 				  );
 			return yield* _(
-				Effect.iterate(
-					{ path, distance, found: false, first: true },
+				iterateFullEffect(
+					{ path, distance },
 					{
-						while: (sCurrent) => sCurrent.distance >= 0 && !sCurrent.found,
-						body: (sIn) =>
-							pipe(sIn.first ? sIn.path : ioPath.join(sIn.path, '..'), (pathUp) =>
-								pipe(
-									readDirectoryWithInfo(ioFs, ioPath)(
-										pathUp,
-										{ recursive: false },
-										filesExclude,
-										() => true
-									),
-									Effect.flatMap(stopPredicate),
-									Effect.map((found) => ({
-										path: pathUp,
-										distance: sIn.distance - 1,
-										found,
-										first: false
-									}))
-								)
-							)
+						while: ({ path, distance }) =>
+							distance < 0
+								? Effect.succeed(false)
+								: pipe(
+										readDirectoryWithInfo(ioFs, ioPath)(
+											path,
+											{ recursive: false },
+											filesExclude,
+											() => true
+										),
+										Effect.flatMap(condition)
+								  ),
+						body: ({ path, distance }) =>
+							Effect.succeed({ path: ioPath.join(path, '..'), distance: distance - 1 })
 					}
 				),
-				Effect.map((sLast) => (sLast.found ? Option.some(sLast.path) : Option.none()))
+				Effect.map((sLast) => (distance >= 0 ? Option.some(sLast.path) : Option.none()))
 			);
 		}),
 
@@ -140,7 +137,7 @@ const implementation = (ioFs: IoFs.Interface, ioPath: IoPath.Interface, ioOs: Io
 	 * @param path The path of the directory to read
 	 * @param filesExclude A predicate function that receives a filename and returns true to keep it, false to filter it out.
 	 * @param dirsExclude A predicate function that receives a directory name and returns true to keep it, false to filter it out.
-	 * @returns
+	 * @returns An array containing the fileInfo of each found file
 	 */
 	readDirRecursivelyWithFilters: (
 		path: string,
@@ -150,14 +147,14 @@ const implementation = (ioFs: IoFs.Interface, ioPath: IoPath.Interface, ioOs: Io
 		Effect.map(
 			Effect.iterate(
 				{
-					paths: dirsExclude(path) ? ReadonlyArray.empty<string>() : [path],
-					projectConfigs: ReadonlyArray.empty<FileInfo>()
+					pathsToExplore: dirsExclude(path) ? ReadonlyArray.empty<string>() : [path],
+					fileList: ReadonlyArray.empty<FileInfo>()
 				},
 				{
-					while: (sCurrent) => sCurrent.paths.length > 0,
-					body: (sIn) =>
+					while: ({ pathsToExplore }) => pathsToExplore.length > 0,
+					body: ({ pathsToExplore, fileList }) =>
 						pipe(
-							sIn.paths,
+							pathsToExplore,
 							ReadonlyArray.map((path) =>
 								readDirectoryWithInfo(ioFs, ioPath)(
 									path,
@@ -175,15 +172,15 @@ const implementation = (ioFs: IoFs.Interface, ioPath: IoPath.Interface, ioOs: Io
 										file.stat.type === 'Directory' ? Either.left(file.fullName) : Either.right(file)
 									),
 									(t) => ({
-										paths: t[0],
-										projectConfigs: ReadonlyArray.appendAll(sIn.projectConfigs, t[1])
+										pathsToExplore: t[0],
+										fileList: ReadonlyArray.appendAll(fileList, t[1])
 									})
 								)
 							)
 						)
 				}
 			),
-			(sLast) => sLast.projectConfigs
+			(sLast) => sLast.fileList
 		)
 });
 
