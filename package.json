@@ -15,8 +15,8 @@
 		"@types/eslint-config-prettier": "6.11.3",
 		"@types/eslint__js": "8.42.3",
 		"@types/node": "20.9.0",
-		"@typescript-eslint/eslint-plugin": "^6.10.0",
-		"@typescript-eslint/parser": "^6.10.0",
+		"@typescript-eslint/eslint-plugin": "^6.11.0",
+		"@typescript-eslint/parser": "^6.11.0",
 		"effect": "2.0.0-next.54",
 		"eslint": "^8.53.0",
 		"eslint-config-prettier": "^9.0.0",
@@ -33,8 +33,8 @@
 		"build": "vite build"
 	},
 	"dependencies": {
-		"@effect/platform": "0.28.3",
-		"@effect/platform-node": "0.29.3",
+		"@effect/platform": "0.29.1",
+		"@effect/platform-node": "0.30.1",
 		"@mjljm/effect-lib": "workspace:^",
 		"@mjljm/js-lib": "workspace:^",
 		"@mjljm/node-lib": "workspace:^"
