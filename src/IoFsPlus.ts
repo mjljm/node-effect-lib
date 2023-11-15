@@ -1,7 +1,7 @@
 import * as FileSystem from '@effect/platform/FileSystem';
 import { FunctionPortError } from '@mjljm/effect-lib/Errors';
-import { iterateFullEffect } from '@mjljm/effect-lib/effect-plus/Effect';
-import { PredicateEffect } from '@mjljm/effect-lib/effect-plus/Predicate';
+import { iterateFullEffect } from '@mjljm/effect-lib/effect/Effect';
+import { PredicateEffect } from '@mjljm/effect-lib/effect/Predicate';
 import * as IoFs from '@mjljm/node-effect-lib/IoFs';
 import * as IoOs from '@mjljm/node-effect-lib/IoOs';
 import * as IoPath from '@mjljm/node-effect-lib/IoPath';
@@ -88,9 +88,9 @@ const implementation = (ioFs: IoFs.Interface, ioPath: IoPath.Interface, ioOs: Io
 	/**
 	 * Reads the directory tree upward starting at path until either stopPredicate returns true or the user's home directory is reached.
 	 * @param path The start path (must be a directory path, not a file path)
-	 * @param condition Function that receives all files (after filetring) of the currently read directory and returns an effectful false to stop the search, or an effectful true to continue
+	 * @param condition Function that receives all files (after filtering) of the currently read directory and returns an effectful false to stop the search, or an effectful true to continue
 	 * @param filesExclude A predicate function that receives a filename and returns true to keep it, false to filter it out.
-	 * @returns
+	 * @returns the matching path in an Option.some if any. Option.none otherwise.
 	 */
 	readDirectoriesUpwardWhile: <R, E>(
 		path: string,
