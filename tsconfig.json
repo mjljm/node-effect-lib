@@ -4,8 +4,8 @@
 		// This path definition allows auto-import in VSCode with
 		// "typescript.preferences.importModuleSpecifier": "non-relative",
 		"paths": {
-			"@mjljm/node-effect-lib/*": ["./src/*.ts"]
+			"#internal/*": ["./src/*.ts"]
 		}
 	},
-	"include": [".*", "*", "src", "src/io-logger.ts"]
+	"include": [".*", "*", "src"]
 }

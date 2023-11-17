@@ -10,8 +10,9 @@ const implementation = () => ({
 });
 
 // type Interface = typeof implementation works but leads to verbose type display
-export interface Interface extends Readonly<ReturnType<typeof implementation>> {}
+export interface Interface
+	extends Readonly<ReturnType<typeof implementation>> {}
 
-export const Tag = Context.Tag<Interface>(Symbol.for('@mjljm/node-effect-lib/IoOs.ts'));
+export const Tag = Context.Tag<Interface>(Symbol.for('#internal/IoOs.ts'));
 
 export const live = Layer.succeed(Tag, implementation());

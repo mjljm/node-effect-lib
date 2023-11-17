@@ -1,4 +1,4 @@
-import { FunctionPortError } from '@mjljm/effect-lib/Errors';
+import { MError } from '@mjljm/effect-lib';
 import { Context, Effect, Layer } from 'effect';
 import { fileURLToPath } from 'node:url';
 
@@ -12,7 +12,7 @@ const implementation = () => ({
 		Effect.try({
 			try: () => fileURLToPath(url),
 			catch: (e) =>
-				new FunctionPortError({
+				new MError.FunctionPort({
 					originalError: e,
 					originalFunctionName: 'url.fileURLToPath',
 					moduleName: import.meta.url,
@@ -22,8 +22,9 @@ const implementation = () => ({
 });
 
 // type Interface = typeof implementation works but leads to verbose type display
-export interface Interface extends Readonly<ReturnType<typeof implementation>> {}
+export interface Interface
+	extends Readonly<ReturnType<typeof implementation>> {}
 
-export const Tag = Context.Tag<Interface>(Symbol.for('@mjljm/node-effect-lib/IoUrl.ts'));
+export const Tag = Context.Tag<Interface>(Symbol.for('#internal/IoUrl.ts'));
 
 export const live = Layer.succeed(Tag, implementation());
