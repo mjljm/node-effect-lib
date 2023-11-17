@@ -1,4 +1,4 @@
-export * as IoFs from '#internal/IoFs';
-export * as IoOs from '#internal/IoOs';
-export * as IoPath from '#internal/IoPath';
-export * as IoUrl from '#internal/IoUrl';
+export * as IoFs from '#mjljm/node-effect-lib/IoFs';
+export * as IoOs from '#mjljm/node-effect-lib/IoOs';
+export * as IoPath from '#mjljm/node-effect-lib/IoPath';
+export * as IoUrl from '#mjljm/node-effect-lib/IoUrl';

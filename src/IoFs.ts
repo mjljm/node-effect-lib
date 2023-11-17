@@ -1,5 +1,4 @@
-import * as IoOs from '#internal/IoOs';
-import * as IoPath from '#internal/IoPath';
+import { IoOs, IoPath } from '#mjljm/node-effect-lib/index';
 import * as PlatformNodeFs from '@effect/platform-node/FileSystem';
 import * as FileSystem from '@effect/platform/FileSystem';
 import { MEffect, MError, MPredicate } from '@mjljm/effect-lib';
