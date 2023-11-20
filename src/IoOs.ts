@@ -10,9 +10,11 @@ const implementation = () => ({
 });
 
 // type Interface = typeof implementation works but leads to verbose type display
-export interface Interface
+export interface ServiceInterface
 	extends Readonly<ReturnType<typeof implementation>> {}
 
-export const Tag = Context.Tag<Interface>(Symbol.for('#internal/IoOs.ts'));
+export const Service = Context.Tag<ServiceInterface>(
+	Symbol.for('#internal/IoOs.ts')
+);
 
-export const live = Layer.succeed(Tag, implementation());
+export const live = Layer.succeed(Service, implementation());

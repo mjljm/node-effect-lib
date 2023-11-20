@@ -60,8 +60,8 @@ const readDirectoryWithInfo =
 
 const implementation = (
 	platformFs: PlatformFsInterface,
-	ioPath: IoPath.Interface,
-	ioOs: IoOs.Interface
+	ioPath: IoPath.ServiceInterface,
+	ioOs: IoOs.ServiceInterface
 ) => ({
 	/**
 	 * Port of Node js fsPromises.watch function - Only the function that returns FileChangeInfo<string>'s has been ported.
@@ -198,18 +198,20 @@ const implementation = (
 		)
 });
 
-export interface Interface
+export interface ServiceInterface
 	extends PlatformFsInterface,
 		Readonly<ReturnType<typeof implementation>> {}
 
-export const Tag = Context.Tag<Interface>(Symbol.for('#internal/IoFs.ts'));
+export const Service = Context.Tag<ServiceInterface>(
+	Symbol.for('#internal/IoFs.ts')
+);
 
 export const live = Layer.effect(
-	Tag,
+	Service,
 	Effect.gen(function* (_) {
 		const platformFs = yield* _(PlatformFsTag);
-		const ioPath = yield* _(IoPath.Tag);
-		const ioOs = yield* _(IoOs.Tag);
+		const ioPath = yield* _(IoPath.Service);
+		const ioOs = yield* _(IoOs.Service);
 		return { ...platformFs, ...implementation(platformFs, ioPath, ioOs) };
 	})
 );

@@ -1,9 +1,11 @@
 import * as PlatformNodePath from '@effect/platform-node/Path';
-import { Context } from 'effect';
+import { Context, Layer } from 'effect';
 
-export const Tag = PlatformNodePath.Path;
-export interface Interface extends Context.Tag.Service<typeof Tag> {}
+const PlatformPathTag = PlatformNodePath.Path;
+type PlatformPathInterface = Context.Tag.Service<typeof PlatformPathTag>;
+export interface ServiceInterface extends PlatformPathInterface {}
+export const Service = Context.Tag<ServiceInterface>(
+	Symbol.for('#internal/IoPath.ts')
+);
 
-// layerWin32 implements functions that behave similarly on Windows and Linux
-// See Node js path doc for more information
-export const live = PlatformNodePath.layerWin32;
+export const live = Layer.effect(Service, PlatformPathTag);
