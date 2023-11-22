@@ -28,7 +28,7 @@ export interface FileInfo {
 }
 
 const readDirectoryWithInfo =
-	(platformFs: PlatformFsInterface, ioPath: IoPath.Interface) =>
+	(platformFs: PlatformFsInterface, ioPath: IoPath.ServiceInterface) =>
 	(
 		path: string,
 		options?: FileSystem.ReadDirectoryOptions,
