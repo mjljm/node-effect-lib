@@ -83,14 +83,6 @@ const implementation = (
 		),
 
 	/**
-	 * List the contents of a directory.
-	 * You can recursively list the contents of nested directories by setting the recursive option.
-	 *
-	 * @returns an object containing the file's complete name, base name, dir name and stats.
-	 */
-	readDirectoryWithInfo: readDirectoryWithInfo(platformFs, ioPath),
-
-	/**
 	 * Reads the directory tree upward starting at path until either stopPredicate returns true or the user's home directory is reached.
 	 * @param path The start path (must be a directory path, not a file path)
 	 * @param condition Function that receives all files (after filtering) of the currently read directory and returns an effectful false to stop the search, or an effectful true to continue
@@ -143,7 +135,15 @@ const implementation = (
 		}),
 
 	/**
-	 * Reads recursively the contents of a directory. Only directories that fulfill the predicate are opened recursively. Much faster than reading all subdirectories and filtering afterwards.
+	 * List the contents of a directory.
+	 * You can recursively list the contents of nested directories by setting the recursive option. Unlike readDirRecursivelyWithFilters, dirsExclude is applied after reading the directories, i.e. it is never called if you sey the recursive option.
+	 *
+	 * @returns an object containing the file's complete name, base name, dir name and stats.
+	 */
+	readDirectoryWithInfo: readDirectoryWithInfo(platformFs, ioPath),
+
+	/**
+	 * Reads recursively the contents of a directory. Only directories that fulfill the predicate are opened recursively. Much faster than readDirectoryWithInfo that reads all subdirectories and filters afterwards.
 	 * @param path The path of the directory to read
 	 * @param filesExclude A predicate function that receives a filename and returns true to keep it, false to filter it out.
 	 * @param dirsExclude A predicate function that receives a directory name and returns true to keep it, false to filter it out.
