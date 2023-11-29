@@ -2,7 +2,7 @@ import { IoOs, IoPath } from '#mjljm/node-effect-lib/index';
 import * as PlatformNodeFs from '@effect/platform-node/FileSystem';
 import { PlatformError } from '@effect/platform/Error';
 import * as FileSystem from '@effect/platform/FileSystem';
-import { MEffect, MError, MPredicate, MStruct } from '@mjljm/effect-lib';
+import { MEffect, MError, MFunction, MPredicate } from '@mjljm/effect-lib';
 import {
 	Context,
 	Effect,
@@ -24,7 +24,7 @@ interface ReadFileStringParam {
 	readonly path: string;
 	readonly encoding?: string | undefined;
 }
-const ReadFileStringParam = MStruct.make<ReadFileStringParam>;
+const ReadFileStringParam = MFunction.makeReadonly<ReadFileStringParam>;
 const ReadFileStringParamEq = Equivalence.make<ReadFileStringParam>(
 	(self, that) => self.path === that.path && self.encoding === that.encoding
 );
@@ -39,7 +39,8 @@ interface ReadDirectoryWithInfoParam {
 		| { readonly concurrency?: Concurrency }
 		| undefined;
 }
-const ReadDirectoryWithInfoParam = MStruct.make<ReadDirectoryWithInfoParam>;
+const ReadDirectoryWithInfoParam =
+	MFunction.makeReadonly<ReadDirectoryWithInfoParam>;
 const ReadDirectoryWithInfoParamEq =
 	Equivalence.make<ReadDirectoryWithInfoParam>(
 		(self, that) =>
@@ -60,7 +61,7 @@ export interface FileInfo {
 	readonly stat: FileSystem.File.Info;
 }
 
-export const FileInfo = MStruct.make<FileInfo>;
+export const FileInfo = MFunction.makeReadonly<FileInfo>;
 
 const readDirectoryWithInfo =
 	(platformFs: PlatformFsInterface, ioPath: IoPath.ServiceInterface) =>
@@ -119,7 +120,7 @@ const readDirectoryWithInfoAndFilters =
 	(
 		path: string,
 		options?: FileSystem.ReadDirectoryOptions,
-		filesExclude: Predicate.Predicate<string> = () => false,
+		filesInclude: Predicate.Predicate<string> = () => true,
 		dirsExclude: Predicate.Predicate<string> = () => false,
 		concurrencyOptions?: { readonly concurrency?: Concurrency },
 		memoized?: boolean
@@ -133,11 +134,9 @@ const readDirectoryWithInfoAndFilters =
 			Effect.map(
 				ReadonlyArray.filter(
 					(fileInfo) =>
-						!(
-							(fileInfo.stat.type === 'Directory' &&
-								dirsExclude(fileInfo.fullName)) ||
-							(fileInfo.stat.type === 'File' && filesExclude(fileInfo.fullName))
-						)
+						(fileInfo.stat.type === 'Directory' &&
+							!dirsExclude(fileInfo.fullName)) ||
+						(fileInfo.stat.type === 'File' && filesInclude(fileInfo.fullName))
 				)
 			)
 		);
@@ -187,13 +186,13 @@ const implementation = (
 	/**
 	 * Reads recursively the contents of a directory. Only directories that fulfill the predicate are opened recursively. Much faster than readDirectoryWithInfoAndFilters that reads all subdirectories and filters afterwards.
 	 * @param path The path of the directory to read
-	 * @param filesExclude A predicate function that receives a filename and returns true to keep it, false to filter it out.
-	 * @param dirsExclude A predicate function that receives a directory name and returns true to keep it, false to filter it out.
+	 * @param filesInclude A predicate function that receives a filename and returns true to keep it, false to filter it out.
+	 * @param dirsExclude A predicate function that receives a directory name and returns false to keep it, true to filter it out.
 	 * @returns An array containing the fileInfo of each found file
 	 */
 	readDirRecursivelyWithFilters: (
 		path: string,
-		filesExclude: Predicate.Predicate<string> = () => false,
+		filesInclude: Predicate.Predicate<string> = () => true,
 		dirsExclude: Predicate.Predicate<string> = () => false,
 		concurrencyOptions?: { readonly concurrency?: Concurrency },
 		memoized?: boolean
@@ -219,7 +218,7 @@ const implementation = (
 								)(
 									path,
 									{ recursive: false },
-									filesExclude,
+									filesInclude,
 									dirsExclude,
 									concurrencyOptions,
 									memoized
@@ -251,13 +250,13 @@ const implementation = (
 	 * Reads the directory tree upward starting at path until either stopPredicate returns true or the user's home directory is reached.
 	 * @param path The start path (must be a directory path, not a file path)
 	 * @param condition Function that receives all files (after filtering) of the currently read directory and returns an effectful false to stop the search, or an effectful true to continue
-	 * @param filesExclude A predicate function that receives a filename and returns true to keep it, false to filter it out.
+	 * @param filesInclude A predicate function that receives a filename and returns true to keep it, false to filter it out.
 	 * @returns the matching path in an Option.some if any. Option.none otherwise.
 	 */
 	readDirectoriesUpwardWhile: <R, E>(
 		path: string,
 		condition: MPredicate.PredicateEffect<Array<FileInfo>, R, E>,
-		filesExclude: Predicate.Predicate<string> = () => false,
+		filesInclude: Predicate.Predicate<string> = () => true,
 		concurrencyOptions?: { readonly concurrency?: Concurrency },
 		memoized?: boolean
 	) =>
@@ -287,7 +286,7 @@ const implementation = (
 										)(
 											path,
 											{ recursive: false },
-											filesExclude,
+											filesInclude,
 											() => true,
 											concurrencyOptions,
 											memoized
