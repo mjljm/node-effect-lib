@@ -14,10 +14,6 @@
 		}
 	},
 	"packageManager": "pnpm@8.10.2",
-	"publishConfig": {
-		"access": "restricted",
-		"directory": "dist"
-	},
 	"author": "Jérôme MARTIN",
 	"license": "MIT",
 	"repository": {
@@ -75,18 +71,16 @@
 		"prettier": "^3.1.0",
 		"terser": "^5.24.0",
 		"typescript": "^5.3.2",
-		"vite": "^5.0.3",
+		"vite": "^5.0.4",
 		"vite-node": "^0.34.6",
 		"vitest": "^0.34.6"
 	},
 	"dependencies": {
+		"@effect/platform": "^0.31.2",
+		"@effect/platform-node": "^0.32.3",
 		"@mjljm/effect-lib": "workspace:*",
 		"@mjljm/js-lib": "workspace:*",
-		"@mjljm/node-lib": "workspace:*"
-	},
-	"peerDependencies": {
-		"@effect/platform": "*",
-		"@effect/platform-node": "*",
-		"effect": "*"
+		"@mjljm/node-lib": "workspace:*",
+		"effect": "2.0.0-next.56"
 	}
 }
