@@ -1,9 +1,15 @@
 import { IoPath } from '#mjljm/node-effect-lib/index';
-import { Context, Effect, Layer, pipe } from 'effect';
+import { Context, Effect, Layer } from 'effect';
 import { homedir } from 'node:os';
 
 export interface ServiceInterface {
+	/**
+	 * User's home directory
+	 */
 	readonly homeDir: string;
+	/**
+	 * System root directory
+	 */
 	readonly rootDir: string;
 }
 
@@ -17,20 +23,11 @@ export const live: Layer.Layer<
 	ServiceInterface
 > = Layer.effect(
 	Service,
-	Effect.map(IoPath.Service, (ioPath) =>
-		pipe(
-			{ homeDir: homedir() },
-			({ homeDir }) => ({ homeDir, rootDir: ioPath.parse(homeDir).root }),
-			({ homeDir, rootDir }) => ({
-				/**
-				 * User's home directory
-				 */
-				homeDir,
-				/**
-				 * System root directory
-				 */
-				rootDir
-			})
-		)
-	)
+	Effect.gen(function* (_) {
+		const ioPath = yield* _(IoPath.Service);
+		const homeDir = homedir();
+		const rootDir = ioPath.parse(homeDir).root;
+
+		return { homeDir, rootDir };
+	})
 );
