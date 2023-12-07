@@ -13,6 +13,7 @@ import {
 	Predicate,
 	ReadonlyArray,
 	Stream,
+	Tuple,
 	pipe
 } from 'effect';
 import { Concurrency } from 'effect/Types';
@@ -81,7 +82,7 @@ export interface ServiceInterface
 		params: ReadDirectoryWithInfoParams & {
 			memoized?: boolean | undefined;
 		}
-	) => Effect.Effect<never, PlatformError, Chunk.Chunk<Readonly<FileInfo>>>;
+	) => Effect.Effect<never, PlatformError, Chunk.Chunk<FileInfo>>;
 
 	/**
 	 * List the contents of a directory.
@@ -93,7 +94,7 @@ export interface ServiceInterface
 		params: readDirectoryWithInfoAndFiltersParams & {
 			memoized?: boolean | undefined;
 		}
-	) => Effect.Effect<never, PlatformError, Chunk.Chunk<Readonly<FileInfo>>>;
+	) => Effect.Effect<never, PlatformError, Chunk.Chunk<FileInfo>>;
 
 	/**
 	 * Reads recursively the contents of a directory. Only directories that fulfill the predicate are opened recursively. Much faster than readDirectoryWithInfoAndFilters that reads all subdirectories and filters afterwards.
@@ -110,7 +111,11 @@ export interface ServiceInterface
 			| { readonly concurrency?: Concurrency | undefined }
 			| undefined;
 		memoized?: boolean;
-	}) => Effect.Effect<never, PlatformError, Chunk.Chunk<Readonly<FileInfo>>>;
+	}) => Effect.Effect<
+		never,
+		PlatformError | MError.General,
+		Chunk.Chunk<FileInfo>
+	>;
 
 	/**
 	 * Reads the directory tree upward starting at path until either stopPredicate returns true or the user's home directory is reached.
@@ -174,25 +179,33 @@ export const live = Layer.effect(
 			options,
 			concurrencyOptions
 		}: ReadDirectoryWithInfoParams) =>
-			Effect.flatMap(platformFs.readDirectory(path, options), (files) =>
-				pipe(
-					files,
-					ReadonlyArray.map((relativeName) =>
-						pipe(ioPath.join(path, relativeName), (fullName) =>
-							Effect.map(platformFs.stat(fullName), (stat) =>
-								FileInfo({
-									fullName,
-									baseName: ioPath.basename(fullName),
-									dirName: ioPath.dirname(fullName),
-									stat
-								})
-							)
-						)
+			Effect.gen(function* (_) {
+				const paths = yield* _(platformFs.readDirectory(path, options));
+				const realPaths = yield* _(
+					ReadonlyArray.map(paths, (relativePath) =>
+						Effect.gen(function* (_) {
+							const fullName = yield* _(
+								ioPath.resolve(path, relativePath),
+								platformFs.realPath
+							);
+							const fileInfo = yield* _(platformFs.stat(fullName));
+							return Tuple.make(fullName, fileInfo);
+						})
 					),
-					Effect.allWith(concurrencyOptions),
-					Effect.map(Chunk.unsafeFromArray)
-				)
-			);
+					Effect.allWith(concurrencyOptions)
+				);
+				return pipe(
+					ReadonlyArray.map(realPaths, ([fullName, stat]) =>
+						FileInfo({
+							fullName,
+							baseName: ioPath.basename(fullName),
+							dirName: ioPath.dirname(fullName),
+							stat
+						})
+					),
+					Chunk.unsafeFromArray
+				);
+			});
 		/*const cachedReadDirectoryWithInfo =yield* _(
 					MEffect.cachedFunctionWithLogging(
 						normalReadDirectoryWithInfo,
