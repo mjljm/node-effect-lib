@@ -2,6 +2,8 @@ import { MError } from '@mjljm/effect-lib';
 import { Context, Effect, Layer } from 'effect';
 import { fileURLToPath } from 'node:url';
 
+const moduleTag = '@mjljm/node-effect-lib/IoUrl/';
+
 export interface ServiceInterface {
 	/**
 	 * Port of Node Js's url.fileURLToPath function
@@ -14,7 +16,7 @@ export interface ServiceInterface {
 }
 
 export const Service = Context.Tag<ServiceInterface>(
-	Symbol.for('#internal/IoUrl.ts')
+	Symbol.for(moduleTag + 'Service')
 );
 
 export const live = Layer.succeed(Service, {

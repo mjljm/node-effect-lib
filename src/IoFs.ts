@@ -2,13 +2,15 @@ import { IoOs, IoPath } from '#mjljm/node-effect-lib/index';
 import * as PlatformNodeFs from '@effect/platform-node/FileSystem';
 import { PlatformError } from '@effect/platform/Error';
 import * as FileSystem from '@effect/platform/FileSystem';
-import { MError, MFunction, MPredicate, MStream } from '@mjljm/effect-lib';
+import { MError, MPredicate, MStream } from '@mjljm/effect-lib';
 import {
 	Chunk,
 	Context,
+	Data,
 	Effect,
 	Either,
-	Equivalence,
+	Equal,
+	Hash,
 	Layer,
 	Predicate,
 	ReadonlyArray,
@@ -20,48 +22,68 @@ import { Concurrency } from 'effect/Types';
 import * as NodeFs from 'node:fs';
 import * as NodeFsPromises from 'node:fs/promises';
 
+const moduleTag = '@mjljm/node-effect-lib/IoFs/';
 const PlatformNodeFsTag = PlatformNodeFs.FileSystem;
 type PlatformNodeFsInterface = Context.Tag.Service<typeof PlatformNodeFsTag>;
 
-export interface FileInfo {
+export class FileInfo extends Data.Class<{
 	readonly fullName: string;
 	readonly baseName: string;
 	readonly dirName: string;
 	readonly stat: FileSystem.File.Info;
+}> {
+	[Equal.symbol] = (that: Equal.Equal): boolean =>
+		that instanceof FileInfo
+			? Equal.equals(this.fullName, that.fullName)
+			: false;
+	[Hash.symbol] = (): number => Hash.hash(this.fullName);
 }
-export const FileInfo = MFunction.makeReadonly<FileInfo>;
 
-interface ReadFileStringParams {
+export class ReadFileStringParams extends Data.Class<{
 	readonly path: string;
 	readonly encoding?: string | undefined;
-}
-const ReadFileStringParamsEq = Equivalence.make<ReadFileStringParams>(
-	(self, that) => self.path === that.path && self.encoding === that.encoding
-);
+}> {}
 
-interface ReadDirectoryWithInfoParams {
+export class ReadDirectoryWithInfoParams extends Data.Class<{
 	readonly path: string;
 	readonly options?: FileSystem.ReadDirectoryOptions | undefined;
 	readonly concurrencyOptions?:
 		| { readonly concurrency?: Concurrency | undefined }
 		| undefined;
+}> {
+	[Equal.symbol] = (that: Equal.Equal): boolean =>
+		that instanceof ReadDirectoryWithInfoParams
+			? this.path === that.path &&
+			  ((this.options !== undefined &&
+					that.options !== undefined &&
+					this.options.recursive === that.options.recursive) ||
+					(this.options === undefined && that.options === undefined))
+			: false;
+	[Hash.symbol] = (): number =>
+		Hash.hash(this.path) + Hash.hash(this.options?.recursive);
 }
-const ReadDirectoryWithInfoParamsEq =
-	Equivalence.make<ReadDirectoryWithInfoParams>(
-		(self, that) =>
-			self.path === that.path &&
-			self.options === that.options &&
-			self.options?.recursive === that.options?.recursive
-	);
 
-interface readDirectoryWithInfoAndFiltersParams {
+export class readDirectoryWithInfoAndFiltersParams extends Data.Class<{
 	path: string;
-	options?: FileSystem.ReadDirectoryOptions | undefined;
-	filesInclude: Predicate.Predicate<string>;
-	dirsExclude: Predicate.Predicate<string>;
-	concurrencyOptions?:
+	readonly options?: FileSystem.ReadDirectoryOptions | undefined;
+	readonly filesInclude: Predicate.Predicate<string>;
+	readonly dirsExclude: Predicate.Predicate<string>;
+	readonly concurrencyOptions?:
 		| { readonly concurrency?: Concurrency | undefined }
 		| undefined;
+}> {
+	[Equal.symbol] = (that: Equal.Equal): boolean =>
+		that instanceof readDirectoryWithInfoAndFiltersParams
+			? this.path === that.path &&
+			  this.options?.recursive === that.options?.recursive &&
+			  this.filesInclude === that.filesInclude && // functions are considered equal only if same object
+			  this.dirsExclude === that.dirsExclude // functions are considered equal only if same object
+			: false;
+	[Hash.symbol] = (): number =>
+		Hash.hash(this.path) +
+		Hash.hash(this.options?.recursive) +
+		Hash.hash(this.filesInclude) +
+		Hash.hash(this.dirsExclude);
 }
 
 export interface ServiceInterface
@@ -70,7 +92,8 @@ export interface ServiceInterface
 	 * Same as readFileString but the result can be memoized
 	 */
 	readFileString: (
-		params: ReadFileStringParams & { memoized?: boolean | undefined }
+		params: ReadFileStringParams,
+		memoized?: boolean | undefined
 	) => Effect.Effect<never, PlatformError, string>;
 
 	/**
@@ -79,9 +102,8 @@ export interface ServiceInterface
 	 * @returns an object containing the file's complete name, base name, dir name and stats.
 	 */
 	readDirectoryWithInfo: (
-		params: ReadDirectoryWithInfoParams & {
-			memoized?: boolean | undefined;
-		}
+		params: ReadDirectoryWithInfoParams,
+		memoized?: boolean | undefined
 	) => Effect.Effect<never, PlatformError, Chunk.Chunk<FileInfo>>;
 
 	/**
@@ -91,9 +113,8 @@ export interface ServiceInterface
 	 * @returns an object containing the file's complete name, base name, dir name and stats.
 	 */
 	readDirectoryWithInfoAndFilters: (
-		params: readDirectoryWithInfoAndFiltersParams & {
-			memoized?: boolean | undefined;
-		}
+		params: readDirectoryWithInfoAndFiltersParams,
+		memoized?: boolean | undefined
 	) => Effect.Effect<never, PlatformError, Chunk.Chunk<FileInfo>>;
 
 	/**
@@ -103,15 +124,17 @@ export interface ServiceInterface
 	 * @param dirsExclude A predicate function that receives a directory name and returns false to keep it, true to filter it out.
 	 * @returns An array containing the fileInfo of each found file
 	 */
-	readDirRecursivelyWithFilters: (params: {
-		startPath: FileInfo;
-		filesInclude: Predicate.Predicate<string>;
-		dirsExclude: Predicate.Predicate<string>;
-		concurrencyOptions?:
-			| { readonly concurrency?: Concurrency | undefined }
-			| undefined;
-		memoized?: boolean;
-	}) => Effect.Effect<
+	readDirRecursivelyWithFilters: (
+		params: {
+			startPath: FileInfo;
+			filesInclude: Predicate.Predicate<string>;
+			dirsExclude: Predicate.Predicate<string>;
+			concurrencyOptions?:
+				| { readonly concurrency?: Concurrency | undefined }
+				| undefined;
+		},
+		memoized?: boolean
+	) => Effect.Effect<
 		never,
 		PlatformError | MError.General,
 		Chunk.Chunk<FileInfo>
@@ -124,15 +147,17 @@ export interface ServiceInterface
 	 * @param filesInclude A predicate function that receives a filename and returns true to keep it, false to filter it out.
 	 * @returns the matching path in an Option.some if any. Option.none otherwise.
 	 */
-	readDirectoriesUpwardWhile: <R, E>(params: {
-		path: string;
-		isTargetDir: MPredicate.PredicateEffect<Chunk.Chunk<FileInfo>, R, E>;
-		filesInclude: Predicate.Predicate<string>;
-		concurrencyOptions?:
-			| { readonly concurrency?: Concurrency | undefined }
-			| undefined;
-		memoized?: boolean | undefined;
-	}) => Effect.Effect<R, PlatformError | E, Chunk.Chunk<FileInfo>>;
+	readDirectoriesUpwardWhile: <R, E>(
+		params: {
+			path: string;
+			isTargetDir: MPredicate.PredicateEffect<Chunk.Chunk<FileInfo>, R, E>;
+			filesInclude: Predicate.Predicate<string>;
+			concurrencyOptions?:
+				| { readonly concurrency?: Concurrency | undefined }
+				| undefined;
+		},
+		memoized?: boolean | undefined
+	) => Effect.Effect<R, PlatformError | E, Chunk.Chunk<FileInfo>>;
 
 	/**
 	 * Port of Node js fsPromises.watch function - Only the function that returns FileChangeInfo<string>'s has been ported.
@@ -151,7 +176,7 @@ export interface ServiceInterface
 }
 
 export const Service = Context.Tag<ServiceInterface>(
-	Symbol.for('#internal/IoFs.ts')
+	Symbol.for(moduleTag + 'Service')
 );
 
 export const live = Layer.effect(
@@ -162,15 +187,16 @@ export const live = Layer.effect(
 		const ioOs = yield* _(IoOs.Service);
 
 		const cachedReadFileString = yield* _(
-			Effect.cachedFunction(
-				({ path, encoding }: ReadFileStringParams) =>
-					platformFs.readFileString(path, encoding),
-				ReadFileStringParamsEq
+			Effect.cachedFunction(({ path, encoding }: ReadFileStringParams) =>
+				platformFs.readFileString(path, encoding)
 			)
 		);
 
-		const readFileString: ServiceInterface['readFileString'] = (params) =>
-			params.memoized ?? false
+		const readFileString: ServiceInterface['readFileString'] = (
+			params,
+			memoized
+		) =>
+			memoized ?? false
 				? cachedReadFileString(params)
 				: platformFs.readFileString(params.path, params.encoding);
 
@@ -195,13 +221,15 @@ export const live = Layer.effect(
 					Effect.allWith(concurrencyOptions)
 				);
 				return pipe(
-					ReadonlyArray.map(realPaths, ([fullName, stat]) =>
-						FileInfo({
-							fullName,
-							baseName: ioPath.basename(fullName),
-							dirName: ioPath.dirname(fullName),
-							stat
-						})
+					ReadonlyArray.map(
+						realPaths,
+						([fullName, stat]) =>
+							new FileInfo({
+								fullName,
+								baseName: ioPath.basename(fullName),
+								dirName: ioPath.dirname(fullName),
+								stat
+							})
 					),
 					Chunk.unsafeFromArray
 				);
@@ -219,35 +247,37 @@ export const live = Layer.effect(
 						ReadDirectoryWithInfoParamsEq
 					));*/
 		const cachedReadDirectoryWithInfo = yield* _(
-			Effect.cachedFunction(
-				normalReadDirectoryWithInfo,
-				ReadDirectoryWithInfoParamsEq
-			)
+			Effect.cachedFunction(normalReadDirectoryWithInfo)
 		);
 
 		const readDirectoryWithInfo: ServiceInterface['readDirectoryWithInfo'] = (
-			params
+			params,
+			memoized
 		) =>
-			params.memoized
+			memoized
 				? cachedReadDirectoryWithInfo(params)
 				: normalReadDirectoryWithInfo(params);
 
 		const readDirectoryWithInfoAndFilters: ServiceInterface['readDirectoryWithInfoAndFilters'] =
-			({
-				path,
-				options,
-				filesInclude = () => true,
-				dirsExclude = () => false,
-				concurrencyOptions,
+			(
+				{
+					path,
+					options,
+					filesInclude = () => true,
+					dirsExclude = () => false,
+					concurrencyOptions
+				},
 				memoized
-			}) =>
+			) =>
 				pipe(
-					readDirectoryWithInfo({
-						path,
-						options,
-						concurrencyOptions,
+					readDirectoryWithInfo(
+						new ReadDirectoryWithInfoParams({
+							path,
+							options,
+							concurrencyOptions
+						}),
 						memoized
-					}),
+					),
 					Effect.map(
 						Chunk.filter(
 							(fileInfo) =>
@@ -263,54 +293,57 @@ export const live = Layer.effect(
 			readFileString,
 			readDirectoryWithInfo,
 			readDirectoryWithInfoAndFilters,
-			readDirRecursivelyWithFilters: ({
-				startPath,
-				filesInclude = () => true,
-				dirsExclude = () => false,
-				concurrencyOptions,
+			readDirRecursivelyWithFilters: (
+				{
+					startPath,
+					filesInclude = () => true,
+					dirsExclude = () => false,
+					concurrencyOptions
+				},
 				memoized
-			}) =>
+			) =>
 				pipe(
 					MStream.fromLeavesOfGraphWithOrigin({
 						origin: startPath,
 						getChildren: (path) =>
 							path.stat.type === 'Directory'
 								? Either.right(
-										readDirectoryWithInfoAndFilters({
-											path: path.fullName,
-											options: { recursive: false },
-											filesInclude,
-											dirsExclude,
-											concurrencyOptions,
+										readDirectoryWithInfoAndFilters(
+											new readDirectoryWithInfoAndFiltersParams({
+												path: path.fullName,
+												options: { recursive: false },
+												filesInclude,
+												dirsExclude,
+												concurrencyOptions
+											}),
 											memoized
-										})
+										)
 								  )
 								: Either.left(Effect.succeed(path)),
 						concurrencyOptions
 					}),
 					Stream.runCollect
 				),
-			readDirectoriesUpwardWhile: ({
-				path,
-				isTargetDir,
-				filesInclude = () => true,
-				concurrencyOptions,
+			readDirectoriesUpwardWhile: (
+				{ path, isTargetDir, filesInclude = () => true, concurrencyOptions },
 				memoized
-			}) =>
+			) =>
 				pipe(
 					Stream.iterate(path, (path) => ioPath.join(path, '..')),
 					Stream.takeUntil(
 						(path) => path === ioOs.homeDir || path === ioOs.rootDir
 					),
 					Stream.mapEffect((path) =>
-						readDirectoryWithInfoAndFilters({
-							path,
-							options: { recursive: false },
-							filesInclude,
-							dirsExclude: () => true,
-							concurrencyOptions,
+						readDirectoryWithInfoAndFilters(
+							new readDirectoryWithInfoAndFiltersParams({
+								path,
+								options: { recursive: false },
+								filesInclude,
+								dirsExclude: () => true,
+								concurrencyOptions
+							}),
 							memoized
-						})
+						)
 					),
 					Stream.takeUntilEffect(isTargetDir),
 					Stream.runCollect,

@@ -2,6 +2,8 @@ import { IoPath } from '#mjljm/node-effect-lib/index';
 import { Context, Effect, Layer } from 'effect';
 import { homedir } from 'node:os';
 
+const moduleTag = '@mjljm/node-effect-lib/IoOs/';
+
 export interface ServiceInterface {
 	/**
 	 * User's home directory
@@ -14,7 +16,7 @@ export interface ServiceInterface {
 }
 
 export const Service = Context.Tag<ServiceInterface>(
-	Symbol.for('#internal/IoOs.ts')
+	Symbol.for(moduleTag + 'Service')
 );
 
 export const live: Layer.Layer<
