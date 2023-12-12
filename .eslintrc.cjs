@@ -38,14 +38,7 @@ const extraRules = {
 	'import/newline-after-import': 'error',
 	'import/no-relative-packages': 'error',
 	'import/consistent-type-specifier-style': ['error', 'prefer-inline'],
-	'import/no-extraneous-dependencies': [
-		'error',
-		{
-			devDependencies: false,
-			optionalDependencies: false,
-			peerDependencies: false
-		}
-	],
+	'import/no-extraneous-dependencies': ['error', { includeTypes: true }],
 	'import/no-import-module-exports': 'error',
 	'import/no-self-import': 'error',
 	'import/extensions': ['error', 'never'],

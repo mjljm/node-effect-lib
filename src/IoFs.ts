@@ -2,13 +2,12 @@ import { IoOs, IoPath } from '#mjljm/node-effect-lib/index';
 import * as PlatformNodeFs from '@effect/platform-node/FileSystem';
 import { PlatformError } from '@effect/platform/Error';
 import * as FileSystem from '@effect/platform/FileSystem';
-import { MError, MPredicate, MStream } from '@mjljm/effect-lib';
+import { MEffect, MError, MPredicate, Tree } from '@mjljm/effect-lib';
 import {
 	Chunk,
 	Context,
 	Data,
 	Effect,
-	Either,
 	Equal,
 	Hash,
 	Layer,
@@ -89,21 +88,21 @@ export class readDirectoryWithInfoAndFiltersParams extends Data.Class<{
 export interface ServiceInterface
 	extends Omit<PlatformNodeFsInterface, 'readFileString'> {
 	/**
-	 * Same as readFileString but the result can be memoized
+	 * Same as readFileString but the result can be memoize
 	 */
 	readFileString: (
 		params: ReadFileStringParams,
-		memoized?: boolean | undefined
+		memoize?: boolean | undefined
 	) => Effect.Effect<never, PlatformError, string>;
 
 	/**
-	 * List the contents of a directory. You can recursively list the contents of nested directories by setting the recursive option. Can be memoized.
+	 * List the contents of a directory. You can recursively list the contents of nested directories by setting the recursive option. Can be memoize.
 	 *
 	 * @returns an object containing the file's complete name, base name, dir name and stats.
 	 */
 	readDirectoryWithInfo: (
 		params: ReadDirectoryWithInfoParams,
-		memoized?: boolean | undefined
+		memoize?: boolean | undefined
 	) => Effect.Effect<never, PlatformError, Chunk.Chunk<FileInfo>>;
 
 	/**
@@ -114,7 +113,7 @@ export interface ServiceInterface
 	 */
 	readDirectoryWithInfoAndFilters: (
 		params: readDirectoryWithInfoAndFiltersParams,
-		memoized?: boolean | undefined
+		memoize?: boolean | undefined
 	) => Effect.Effect<never, PlatformError, Chunk.Chunk<FileInfo>>;
 
 	/**
@@ -133,7 +132,7 @@ export interface ServiceInterface
 				| { readonly concurrency?: Concurrency | undefined }
 				| undefined;
 		},
-		memoized?: boolean
+		memoize?: boolean
 	) => Effect.Effect<
 		never,
 		PlatformError | MError.General,
@@ -156,7 +155,7 @@ export interface ServiceInterface
 				| { readonly concurrency?: Concurrency | undefined }
 				| undefined;
 		},
-		memoized?: boolean | undefined
+		memoize?: boolean | undefined
 	) => Effect.Effect<R, PlatformError | E, Chunk.Chunk<FileInfo>>;
 
 	/**
@@ -194,9 +193,9 @@ export const live = Layer.effect(
 
 		const readFileString: ServiceInterface['readFileString'] = (
 			params,
-			memoized
+			memoize
 		) =>
-			memoized ?? false
+			memoize ?? false
 				? cachedReadFileString(params)
 				: platformFs.readFileString(params.path, params.encoding);
 
@@ -252,9 +251,9 @@ export const live = Layer.effect(
 
 		const readDirectoryWithInfo: ServiceInterface['readDirectoryWithInfo'] = (
 			params,
-			memoized
+			memoize
 		) =>
-			memoized
+			memoize
 				? cachedReadDirectoryWithInfo(params)
 				: normalReadDirectoryWithInfo(params);
 
@@ -267,7 +266,7 @@ export const live = Layer.effect(
 					dirsExclude = () => false,
 					concurrencyOptions
 				},
-				memoized
+				memoize
 			) =>
 				pipe(
 					readDirectoryWithInfo(
@@ -276,7 +275,7 @@ export const live = Layer.effect(
 							options,
 							concurrencyOptions
 						}),
-						memoized
+						memoize
 					),
 					Effect.map(
 						Chunk.filter(
@@ -300,33 +299,58 @@ export const live = Layer.effect(
 					dirsExclude = () => false,
 					concurrencyOptions
 				},
-				memoized
+				memoize
 			) =>
 				pipe(
-					MStream.fromLeavesOfGraphWithOrigin({
-						origin: startPath,
-						getChildren: (path) =>
-							path.stat.type === 'Directory'
-								? Either.right(
-										readDirectoryWithInfoAndFilters(
-											new readDirectoryWithInfoAndFiltersParams({
-												path: path.fullName,
-												options: { recursive: false },
-												filesInclude,
-												dirsExclude,
-												concurrencyOptions
-											}),
-											memoized
-										)
-								  )
-								: Either.left(Effect.succeed(path)),
+					MEffect.treeUnfold<
+						never,
+						MError.General | PlatformError,
+						Chunk.Chunk<FileInfo>,
+						FileInfo
+					>(
+						startPath,
+						(nextSeed, isCircular) =>
+							pipe(
+								isCircular
+									? new MError.General({
+											message: `Circularity detected in ${moduleTag}readDirRecursivelyWithFilters from path: ${startPath.fullName}`
+									  })
+									: nextSeed.stat.type === 'Directory'
+									  ? Effect.map(
+												readDirectoryWithInfoAndFilters(
+													new readDirectoryWithInfoAndFiltersParams({
+														path: nextSeed.fullName,
+														options: { recursive: false },
+														filesInclude,
+														dirsExclude,
+														concurrencyOptions
+													}),
+													memoize
+												),
+												(files) =>
+													Chunk.partition(
+														files,
+														(fileInfo) => fileInfo.stat.type === 'Directory'
+													)
+									    )
+									  : new MError.General({
+												message: `${moduleTag}readDirRecursivelyWithFilters was called with a path that is not a directory: ${startPath.fullName}`
+									    })
+							),
+						memoize,
+						undefined,
 						concurrencyOptions
-					}),
-					Stream.runCollect
+					),
+					Effect.map(
+						Tree.reduce(Chunk.empty<FileInfo>(), (acc, a) =>
+							Chunk.appendAll(acc, a)
+						)
+					)
 				),
+
 			readDirectoriesUpwardWhile: (
 				{ path, isTargetDir, filesInclude = () => true, concurrencyOptions },
-				memoized
+				memoize
 			) =>
 				pipe(
 					Stream.iterate(path, (path) => ioPath.join(path, '..')),
@@ -342,7 +366,7 @@ export const live = Layer.effect(
 								dirsExclude: () => true,
 								concurrencyOptions
 							}),
-							memoized
+							memoize
 						)
 					),
 					Stream.takeUntilEffect(isTargetDir),
