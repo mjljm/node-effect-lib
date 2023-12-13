@@ -11,6 +11,7 @@ import {
 	Equal,
 	Hash,
 	Layer,
+	Option,
 	Predicate,
 	ReadonlyArray,
 	Stream,
@@ -41,7 +42,14 @@ export class FileInfo extends Data.Class<{
 export class ReadFileStringParams extends Data.Class<{
 	readonly path: string;
 	readonly encoding?: string | undefined;
-}> {}
+	readonly memoize?: boolean | undefined;
+}> {
+	[Equal.symbol] = (that: Equal.Equal): boolean =>
+		that instanceof ReadFileStringParams
+			? this.path === that.path && this.encoding === that.encoding
+			: false;
+	[Hash.symbol] = (): number => Hash.hash(this.path) + Hash.hash(this.encoding);
+}
 
 export class ReadDirectoryWithInfoParams extends Data.Class<{
 	readonly path: string;
@@ -49,6 +57,7 @@ export class ReadDirectoryWithInfoParams extends Data.Class<{
 	readonly concurrencyOptions?:
 		| { readonly concurrency?: Concurrency | undefined }
 		| undefined;
+	readonly memoize?: boolean | undefined;
 }> {
 	[Equal.symbol] = (that: Equal.Equal): boolean =>
 		that instanceof ReadDirectoryWithInfoParams
@@ -70,6 +79,7 @@ export class readDirectoryWithInfoAndFiltersParams extends Data.Class<{
 	readonly concurrencyOptions?:
 		| { readonly concurrency?: Concurrency | undefined }
 		| undefined;
+	readonly memoize?: boolean | undefined;
 }> {
 	[Equal.symbol] = (that: Equal.Equal): boolean =>
 		that instanceof readDirectoryWithInfoAndFiltersParams
@@ -91,8 +101,7 @@ export interface ServiceInterface
 	 * Same as readFileString but the result can be memoize
 	 */
 	readFileString: (
-		params: ReadFileStringParams,
-		memoize?: boolean | undefined
+		params: ReadFileStringParams
 	) => Effect.Effect<never, PlatformError, string>;
 
 	/**
@@ -101,8 +110,7 @@ export interface ServiceInterface
 	 * @returns an object containing the file's complete name, base name, dir name and stats.
 	 */
 	readDirectoryWithInfo: (
-		params: ReadDirectoryWithInfoParams,
-		memoize?: boolean | undefined
+		params: ReadDirectoryWithInfoParams
 	) => Effect.Effect<never, PlatformError, Chunk.Chunk<FileInfo>>;
 
 	/**
@@ -112,8 +120,7 @@ export interface ServiceInterface
 	 * @returns an object containing the file's complete name, base name, dir name and stats.
 	 */
 	readDirectoryWithInfoAndFilters: (
-		params: readDirectoryWithInfoAndFiltersParams,
-		memoize?: boolean | undefined
+		params: readDirectoryWithInfoAndFiltersParams
 	) => Effect.Effect<never, PlatformError, Chunk.Chunk<FileInfo>>;
 
 	/**
@@ -123,17 +130,15 @@ export interface ServiceInterface
 	 * @param dirsExclude A predicate function that receives a directory name and returns false to keep it, true to filter it out.
 	 * @returns An array containing the fileInfo of each found file
 	 */
-	readDirRecursivelyWithFilters: (
-		params: {
-			startPath: FileInfo;
-			filesInclude: Predicate.Predicate<string>;
-			dirsExclude: Predicate.Predicate<string>;
-			concurrencyOptions?:
-				| { readonly concurrency?: Concurrency | undefined }
-				| undefined;
-		},
-		memoize?: boolean
-	) => Effect.Effect<
+	readDirRecursivelyWithFilters: (params: {
+		startPath: FileInfo;
+		filesInclude: Predicate.Predicate<string>;
+		dirsExclude: Predicate.Predicate<string>;
+		concurrencyOptions?:
+			| { readonly concurrency?: Concurrency | undefined }
+			| undefined;
+		memoize?: boolean;
+	}) => Effect.Effect<
 		never,
 		PlatformError | MError.General,
 		Chunk.Chunk<FileInfo>
@@ -146,17 +151,15 @@ export interface ServiceInterface
 	 * @param filesInclude A predicate function that receives a filename and returns true to keep it, false to filter it out.
 	 * @returns the matching path in an Option.some if any. Option.none otherwise.
 	 */
-	readDirectoriesUpwardWhile: <R, E>(
-		params: {
-			path: string;
-			isTargetDir: MPredicate.PredicateEffect<Chunk.Chunk<FileInfo>, R, E>;
-			filesInclude: Predicate.Predicate<string>;
-			concurrencyOptions?:
-				| { readonly concurrency?: Concurrency | undefined }
-				| undefined;
-		},
-		memoize?: boolean | undefined
-	) => Effect.Effect<R, PlatformError | E, Chunk.Chunk<FileInfo>>;
+	readDirectoriesUpwardWhile: <R, E>(params: {
+		path: string;
+		isTargetDir: MPredicate.PredicateEffect<Chunk.Chunk<FileInfo>, R, E>;
+		filesInclude: Predicate.Predicate<string>;
+		concurrencyOptions?:
+			| { readonly concurrency?: Concurrency | undefined }
+			| undefined;
+		memoize?: boolean | undefined;
+	}) => Effect.Effect<R, PlatformError | E, Option.Option<string>>;
 
 	/**
 	 * Port of Node js fsPromises.watch function - Only the function that returns FileChangeInfo<string>'s has been ported.
@@ -191,11 +194,8 @@ export const live = Layer.effect(
 			)
 		);
 
-		const readFileString: ServiceInterface['readFileString'] = (
-			params,
-			memoize
-		) =>
-			memoize ?? false
+		const readFileString: ServiceInterface['readFileString'] = (params) =>
+			params.memoize ?? false
 				? cachedReadFileString(params)
 				: platformFs.readFileString(params.path, params.encoding);
 
@@ -250,32 +250,29 @@ export const live = Layer.effect(
 		);
 
 		const readDirectoryWithInfo: ServiceInterface['readDirectoryWithInfo'] = (
-			params,
-			memoize
+			params
 		) =>
-			memoize
+			params.memoize
 				? cachedReadDirectoryWithInfo(params)
 				: normalReadDirectoryWithInfo(params);
 
 		const readDirectoryWithInfoAndFilters: ServiceInterface['readDirectoryWithInfoAndFilters'] =
-			(
-				{
-					path,
-					options,
-					filesInclude = () => true,
-					dirsExclude = () => false,
-					concurrencyOptions
-				},
+			({
+				path,
+				options,
+				filesInclude = () => true,
+				dirsExclude = () => false,
+				concurrencyOptions,
 				memoize
-			) =>
+			}) =>
 				pipe(
 					readDirectoryWithInfo(
 						new ReadDirectoryWithInfoParams({
 							path,
 							options,
-							concurrencyOptions
-						}),
-						memoize
+							concurrencyOptions,
+							memoize
+						})
 					),
 					Effect.map(
 						Chunk.filter(
@@ -292,15 +289,13 @@ export const live = Layer.effect(
 			readFileString,
 			readDirectoryWithInfo,
 			readDirectoryWithInfoAndFilters,
-			readDirRecursivelyWithFilters: (
-				{
-					startPath,
-					filesInclude = () => true,
-					dirsExclude = () => false,
-					concurrencyOptions
-				},
+			readDirRecursivelyWithFilters: ({
+				startPath,
+				filesInclude = () => true,
+				dirsExclude = () => false,
+				concurrencyOptions,
 				memoize
-			) =>
+			}) =>
 				pipe(
 					MEffect.treeUnfold<
 						never,
@@ -323,9 +318,9 @@ export const live = Layer.effect(
 														options: { recursive: false },
 														filesInclude,
 														dirsExclude,
-														concurrencyOptions
-													}),
-													memoize
+														concurrencyOptions,
+														memoize
+													})
 												),
 												(files) =>
 													Chunk.partition(
@@ -348,30 +343,41 @@ export const live = Layer.effect(
 					)
 				),
 
-			readDirectoriesUpwardWhile: (
-				{ path, isTargetDir, filesInclude = () => true, concurrencyOptions },
+			readDirectoriesUpwardWhile: ({
+				path,
+				isTargetDir,
+				filesInclude = () => true,
+				concurrencyOptions,
 				memoize
-			) =>
+			}) =>
 				pipe(
 					Stream.iterate(path, (path) => ioPath.join(path, '..')),
 					Stream.takeUntil(
 						(path) => path === ioOs.homeDir || path === ioOs.rootDir
 					),
 					Stream.mapEffect((path) =>
-						readDirectoryWithInfoAndFilters(
-							new readDirectoryWithInfoAndFiltersParams({
-								path,
-								options: { recursive: false },
-								filesInclude,
-								dirsExclude: () => true,
-								concurrencyOptions
-							}),
-							memoize
+						pipe(
+							readDirectoryWithInfoAndFilters(
+								new readDirectoryWithInfoAndFiltersParams({
+									path,
+									options: { recursive: false },
+									filesInclude,
+									dirsExclude: () => true,
+									concurrencyOptions,
+									memoize
+								})
+							),
+							Effect.flatMap(isTargetDir),
+							Effect.map((isTargetDir) => Tuple.make(path, isTargetDir))
 						)
 					),
-					Stream.takeUntilEffect(isTargetDir),
-					Stream.runCollect,
-					Effect.map(Chunk.flatten)
+					Stream.takeUntil(([_, isTargetDir]) => isTargetDir),
+					Stream.runLast,
+					Effect.map(
+						Option.flatMap(([path, isTargetDir]) =>
+							isTargetDir ? Option.some(path) : Option.none()
+						)
+					)
 				),
 			watch: ({ filename, options }) =>
 				Stream.fromAsyncIterable(
