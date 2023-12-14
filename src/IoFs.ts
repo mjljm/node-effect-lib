@@ -1,4 +1,4 @@
-import { IoOs, IoPath } from '#mjljm/node-effect-lib/index';
+import { FileInfo, IoOs, IoPath } from '#mjljm/node-effect-lib/index';
 import * as PlatformNodeFs from '@effect/platform-node/FileSystem';
 import { PlatformError } from '@effect/platform/Error';
 import * as FileSystem from '@effect/platform/FileSystem';
@@ -26,19 +26,6 @@ const moduleTag = '@mjljm/node-effect-lib/IoFs/';
 const PlatformNodeFsTag = PlatformNodeFs.FileSystem;
 type PlatformNodeFsInterface = Context.Tag.Service<typeof PlatformNodeFsTag>;
 
-export class FileInfo extends Data.Class<{
-	readonly absolutePath: string;
-	readonly basename: string;
-	readonly dirname: string;
-	readonly stat: FileSystem.File.Info;
-}> {
-	[Equal.symbol] = (that: Equal.Equal): boolean =>
-		that instanceof FileInfo
-			? Equal.equals(this.absolutePath, that.absolutePath)
-			: false;
-	[Hash.symbol] = (): number => Hash.hash(this.absolutePath);
-}
-
 export class ReadFileStringParams extends Data.Class<{
 	readonly filename: string;
 	readonly encoding?: string | undefined;
@@ -54,27 +41,36 @@ export class ReadFileStringParams extends Data.Class<{
 
 export class ReadDirectoryWithInfoParams extends Data.Class<{
 	readonly dir: string;
-	readonly options?: FileSystem.ReadDirectoryOptions | undefined;
+	readonly options?:
+		| (FileSystem.ReadDirectoryOptions & {
+				resolveSymLinks?: boolean | undefined;
+		  })
+		| undefined;
 	readonly concurrencyOptions?:
 		| { readonly concurrency?: Concurrency | undefined }
 		| undefined;
 	readonly memoize?: boolean | undefined;
 }> {
-	[Equal.symbol] = (that: Equal.Equal): boolean =>
-		that instanceof ReadDirectoryWithInfoParams
+	[Equal.symbol] = (that: Equal.Equal): boolean => {
+		return that instanceof ReadDirectoryWithInfoParams
 			? this.dir === that.dir &&
-			  ((this.options !== undefined &&
-					that.options !== undefined &&
-					this.options.recursive === that.options.recursive) ||
-					(this.options === undefined && that.options === undefined))
+					(this.options?.recursive ?? false) ===
+						(that.options?.recursive ?? false) &&
+					(this.options?.resolveSymLinks ?? false) ===
+						(that.options?.resolveSymLinks ?? false)
 			: false;
+	};
 	[Hash.symbol] = (): number =>
 		Hash.hash(this.dir) + Hash.hash(this.options?.recursive);
 }
 
 export class readDirectoryWithInfoAndFiltersParams extends Data.Class<{
 	dir: string;
-	readonly options?: FileSystem.ReadDirectoryOptions | undefined;
+	readonly options?:
+		| (FileSystem.ReadDirectoryOptions & {
+				resolveSymLinks?: boolean | undefined;
+		  })
+		| undefined;
 	readonly filesInclude: Predicate.Predicate<string>;
 	readonly dirsExclude: Predicate.Predicate<string>;
 	readonly concurrencyOptions?:
@@ -85,7 +81,10 @@ export class readDirectoryWithInfoAndFiltersParams extends Data.Class<{
 	[Equal.symbol] = (that: Equal.Equal): boolean =>
 		that instanceof readDirectoryWithInfoAndFiltersParams
 			? this.dir === that.dir &&
-			  this.options?.recursive === that.options?.recursive &&
+			  (this.options?.recursive ?? false) ===
+					(that.options?.recursive ?? false) &&
+			  (this.options?.resolveSymLinks ?? false) ===
+					(that.options?.resolveSymLinks ?? false) &&
 			  this.filesInclude === that.filesInclude && // functions are considered equal only if same object
 			  this.dirsExclude === that.dirsExclude // functions are considered equal only if same object
 			: false;
@@ -101,7 +100,11 @@ export interface ServiceInterface
 	/**
 	 * Combines fs.stat, path.resolve, path.basename, path.dirname to provide a FileInfo on the given path
 	 */
-	fullStat: (path: string) => Effect.Effect<never, PlatformError, FileInfo>;
+	fullStat: (
+		path: string,
+		resolveSymLinks?: boolean | undefined
+	) => Effect.Effect<never, PlatformError, FileInfo.Type>;
+
 	/**
 	 * Same as readFileString but the result can be memoize
 	 */
@@ -110,26 +113,26 @@ export interface ServiceInterface
 	) => Effect.Effect<never, PlatformError, string>;
 
 	/**
-	 * List the contents of a directory. You can recursively list the contents of nested directories by setting the recursive option. Can be memoize.
+	 * Lists the contents of a directory. You can recursively list the contents of nested directories by setting the recursive option. Can be memoized. If resolveSymLinks is false, symbolic links are ignored. Otherwise, they are transformed to real paths.
 	 *
 	 * @returns an object containing the file's complete name, base name, dir name and stats.
 	 */
 	readDirectoryWithInfo: (
 		params: ReadDirectoryWithInfoParams
-	) => Effect.Effect<never, PlatformError, Chunk.Chunk<FileInfo>>;
+	) => Effect.Effect<never, PlatformError, Chunk.Chunk<FileInfo.Type>>;
 
 	/**
-	 * List the contents of a directory.
-	 * You can recursively list the contents of nested directories by setting the recursive option. Unlike readDirRecursivelyWithFilters, dirsExclude is applied after reading the directories, i.e. it is never called if you sey the recursive option.
+	 * Lists the contents of a directory.
+	 * You can recursively list the contents of nested directories by setting the recursive option. Unlike readDirRecursivelyWithFilters, dirsExclude is applied after reading the directories, i.e. it is never called if you set the recursive option because directories are are opened and not returned. Memoization is handled before filtering by readDirectoryWithInfo. If resolveSymLinks is false, symbolic links are ignored. Otherwise, they are transformed to real paths.
 	 *
 	 * @returns an object containing the file's complete name, base name, dir name and stats.
 	 */
 	readDirectoryWithInfoAndFilters: (
 		params: readDirectoryWithInfoAndFiltersParams
-	) => Effect.Effect<never, PlatformError, Chunk.Chunk<FileInfo>>;
+	) => Effect.Effect<never, PlatformError, Chunk.Chunk<FileInfo.Type>>;
 
 	/**
-	 * Reads recursively the contents of a directory. Only directories that fulfill the predicate are opened recursively. Much faster than readDirectoryWithInfoAndFilters that reads all subdirectories and filters afterwards.
+	 * Reads recursively the contents of a directory. Only directories that fulfill the predicate are opened recursively. Much faster than readDirectoryWithInfoAndFilters that reads all subdirectories and filters afterwards. Memoization is handled at directory level by readDirectoryWithInfo. If resolveSymLinks is false, symbolic links are ignored. Otherwise, they are transformed to real paths.
 	 * @param dir The path of the directory to read
 	 * @param filesInclude A predicate function that receives a filename and returns true to keep it, false to filter it out.
 	 * @param dirsExclude A predicate function that receives a directory name and returns false to keep it, true to filter it out.
@@ -139,6 +142,7 @@ export interface ServiceInterface
 		startDir: string;
 		filesInclude: Predicate.Predicate<string>;
 		dirsExclude: Predicate.Predicate<string>;
+		resolveSymLinks?: boolean | undefined;
 		concurrencyOptions?:
 			| { readonly concurrency?: Concurrency | undefined }
 			| undefined;
@@ -146,7 +150,7 @@ export interface ServiceInterface
 	}) => Effect.Effect<
 		never,
 		PlatformError | MError.General,
-		Chunk.Chunk<FileInfo>
+		Chunk.Chunk<FileInfo.Type>
 	>;
 
 	/**
@@ -158,8 +162,9 @@ export interface ServiceInterface
 	 */
 	readDirectoriesUpwardWhile: <R, E>(params: {
 		startDir: string;
-		isTargetDir: MPredicate.PredicateEffect<Chunk.Chunk<FileInfo>, R, E>;
+		isTargetDir: MPredicate.PredicateEffect<Chunk.Chunk<FileInfo.Type>, R, E>;
 		filesInclude: Predicate.Predicate<string>;
+		resolveSymLinks?: boolean | undefined;
 		concurrencyOptions?:
 			| { readonly concurrency?: Concurrency | undefined }
 			| undefined;
@@ -193,12 +198,17 @@ export const live = Layer.effect(
 		const ioPath = yield* _(IoPath.Service);
 		const ioOs = yield* _(IoOs.Service);
 
-		const fullStat = (path: string) =>
+		const fullStat = (path: string, resolveSymLinks = false) =>
 			Effect.gen(function* (_) {
 				const absolutePath = ioPath.resolve(path);
+				const realPath = resolveSymLinks
+					? yield* _(platformFs.realPath(path))
+					: path;
+				const realAbsolutePath = ioPath.resolve(realPath);
 				const stat = yield* _(absolutePath, platformFs.stat);
-				return new FileInfo({
+				return new FileInfo.Type({
 					absolutePath,
+					realAbsolutePath,
 					basename: ioPath.basename(absolutePath),
 					dirname: ioPath.dirname(absolutePath),
 					stat
@@ -226,7 +236,10 @@ export const live = Layer.effect(
 				const infos = yield* _(
 					paths,
 					ReadonlyArray.map((relativePath) =>
-						fullStat(ioPath.resolve(dir, relativePath))
+						fullStat(
+							ioPath.resolve(dir, relativePath),
+							options?.resolveSymLinks
+						)
 					),
 					Effect.allWith(concurrencyOptions)
 				);
@@ -293,8 +306,9 @@ export const live = Layer.effect(
 				startDir,
 				filesInclude = () => true,
 				dirsExclude = () => false,
+				resolveSymLinks = false,
 				concurrencyOptions,
-				memoize
+				memoize = false
 			}) =>
 				pipe(
 					startDir,
@@ -303,8 +317,8 @@ export const live = Layer.effect(
 						MEffect.treeUnfold<
 							never,
 							MError.General | PlatformError,
-							Chunk.Chunk<FileInfo>,
-							FileInfo
+							Chunk.Chunk<FileInfo.Type>,
+							FileInfo.Type
 						>(
 							startDirWithInfo,
 							(nextSeed, isCircular) =>
@@ -318,7 +332,7 @@ export const live = Layer.effect(
 													readDirectoryWithInfoAndFilters(
 														new readDirectoryWithInfoAndFiltersParams({
 															dir: nextSeed.absolutePath,
-															options: { recursive: false },
+															options: { recursive: false, resolveSymLinks },
 															filesInclude,
 															dirsExclude,
 															concurrencyOptions,
@@ -341,7 +355,7 @@ export const live = Layer.effect(
 						)
 					),
 					Effect.map(
-						Tree.reduce(Chunk.empty<FileInfo>(), (acc, a) =>
+						Tree.reduce(Chunk.empty<FileInfo.Type>(), (acc, a) =>
 							Chunk.appendAll(acc, a)
 						)
 					)
@@ -351,8 +365,9 @@ export const live = Layer.effect(
 				startDir,
 				isTargetDir,
 				filesInclude = () => true,
+				resolveSymLinks = false,
 				concurrencyOptions,
-				memoize
+				memoize = false
 			}) =>
 				pipe(
 					Stream.iterate(startDir, (dir) => ioPath.join(dir, '..')),
@@ -364,7 +379,7 @@ export const live = Layer.effect(
 							readDirectoryWithInfoAndFilters(
 								new readDirectoryWithInfoAndFiltersParams({
 									dir,
-									options: { recursive: false },
+									options: { recursive: false, resolveSymLinks },
 									filesInclude,
 									dirsExclude: () => true,
 									concurrencyOptions,
