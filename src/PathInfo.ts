@@ -3,21 +3,21 @@ import { Data, Equal, Hash, Order } from 'effect';
 
 export class Type extends Data.Class<{
 	/**
-	 * Absolute path to the file (relative paths are converted to absolute paths but symlinks are not resolved)
+	 * Absolute path to the file or directory (relative paths are converted to absolute paths but symlinks are not resolved)
 	 */
 	readonly absolutePath: string;
 	/**
-	 * Real absolute path to the file (symLinks and relative paths are converted to absolute paths). Symlinks are only transformed if resolveSymLinks=true
+	 * Real absolute path to the file or directory (symLinks and relative paths are converted to absolute paths). Symlinks are only transformed if resolveSymLinks=true
 	 */
 	readonly realAbsolutePath: string;
 	/**
-	 * Name of the file with its extension but without the directory part
+	 * Name of the file (with its extension) or directory
 	 */
 	readonly basename: string;
 	/**
 	 * Real absolute path of the directory that contains the file. No trailing separator
 	 */
-	readonly dirname: string;
+	readonly dirPath: string;
 	/**
 	 * Data regarding this file as returned by fs.stat
 	 */
@@ -38,4 +38,4 @@ export const byRealAbsolutePath = Order.mapInput(
 	Order.string,
 	(f: Type) => f.realAbsolutePath
 );
-export const byBaseName = Order.mapInput(Order.string, (f: Type) => f.basename);
+export const byBasename = Order.mapInput(Order.string, (f: Type) => f.basename);
