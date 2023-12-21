@@ -2,7 +2,7 @@ import { IoOs, IoPath, PathInfo } from '#mjljm/node-effect-lib/index';
 import * as PlatformNodeFs from '@effect/platform-node/FileSystem';
 import { PlatformError } from '@effect/platform/Error';
 import * as FileSystem from '@effect/platform/FileSystem';
-import { MEffect, MError, MPredicate, Tree } from '@mjljm/effect-lib';
+import { MEffect, MError, Tree } from '@mjljm/effect-lib';
 import {
 	Chunk,
 	Context,
@@ -23,8 +23,10 @@ import * as NodeFs from 'node:fs';
 import * as NodeFsPromises from 'node:fs/promises';
 
 const moduleTag = '@mjljm/node-effect-lib/IoFs/';
-const PlatformNodeFsTag = PlatformNodeFs.FileSystem;
-type PlatformNodeFsInterface = Context.Tag.Service<typeof PlatformNodeFsTag>;
+const PlatformNodeFsService = PlatformNodeFs.FileSystem;
+type PlatformNodeFsInterface = Context.Tag.Service<
+	typeof PlatformNodeFsService
+>;
 
 export class FullStatParams extends Data.Class<{
 	readonly path: string;
@@ -205,7 +207,7 @@ export const Service = Context.Tag<ServiceInterface>(
 export const live = Layer.effect(
 	Service,
 	Effect.gen(function* (_) {
-		const platformFs = yield* _(PlatformNodeFsTag);
+		const fs = yield* _(PlatformNodeFsService);
 		const ioPath = yield* _(IoPath.Service);
 		const ioOs = yield* _(IoOs.Service);
 
@@ -215,9 +217,9 @@ export const live = Layer.effect(
 		}: FullStatParams) =>
 			Effect.gen(function* (_) {
 				const realAbsolutePath = resolveSymLinks
-					? yield* _(platformFs.realPath(absolutePath))
+					? yield* _(fs.realPath(absolutePath))
 					: absolutePath;
-				const stat = yield* _(realAbsolutePath, platformFs.stat);
+				const stat = yield* _(realAbsolutePath, fs.stat);
 				return new PathInfo.Type({
 					absolutePath,
 					realAbsolutePath,
@@ -249,7 +251,7 @@ export const live = Layer.effect(
 		const cachedReadFileString = yield* _(
 			Effect.cachedFunction(
 				({ filePath: absoluteFilePath, encoding }: ReadFileStringParams) =>
-					platformFs.readFileString(absoluteFilePath, encoding)
+					fs.readFileString(absoluteFilePath, encoding)
 			)
 		);
 
@@ -268,7 +270,7 @@ export const live = Layer.effect(
 							memoize
 						})
 				  )
-				: platformFs.readFileString(filePath, encoding);
+				: fs.readFileString(filePath, encoding);
 
 		const normalReadDirectoryWithInfo = ({
 			dirPath: absoluteDirPath,
@@ -277,9 +279,7 @@ export const live = Layer.effect(
 			memoize
 		}: ReadDirectoryWithInfoParams) =>
 			Effect.gen(function* (_) {
-				const paths = yield* _(
-					platformFs.readDirectory(absoluteDirPath, options)
-				);
+				const paths = yield* _(fs.readDirectory(absoluteDirPath, options));
 				const infos = yield* _(
 					paths,
 					ReadonlyArray.map((path) =>
@@ -358,7 +358,7 @@ export const live = Layer.effect(
 					)
 				);
 		return {
-			...platformFs,
+			...fs,
 			fullStat,
 			readFileString,
 			readDirectoryWithInfo,
