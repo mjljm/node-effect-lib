@@ -2,7 +2,7 @@ import * as PlatformNodeFs from '@effect/platform-node/FileSystem';
 import * as PlatformNodePath from '@effect/platform-node/Path';
 import { BadArgument, PlatformError } from '@effect/platform/Error';
 import { MError, MReadonlyArray } from '@mjljm/effect-lib';
-import { Context, Effect, HashSet, Layer, Option, Predicate, ReadonlyArray, pipe } from 'effect';
+import { Context, Effect, Equal, Hash, HashSet, Layer, Option, Predicate, ReadonlyArray, pipe } from 'effect';
 import { ParsedPath } from 'path';
 
 const moduleTag = '@mjljm/node-effect-lib/IoPath/';
@@ -10,12 +10,8 @@ const moduleTag = '@mjljm/node-effect-lib/IoPath/';
 const PlatformNodePathService = PlatformNodePath.Path;
 const PlatformNodeFsService = PlatformNodeFs.FileSystem;
 
-const PathLinkId: unique symbol = Symbol.for(moduleTag + 'PathLinkId');
-type PathLinkId = typeof PathLinkId;
-const PathPositionId: unique symbol = Symbol.for(moduleTag + 'PathPositionId');
-type PathPositionId = typeof PathPositionId;
-const PathTargetId: unique symbol = Symbol.for(moduleTag + 'PathTargetId');
-type PathTargetId = typeof PathTargetId;
+const TypeId: unique symbol = Symbol.for(moduleTag + 'TypeId');
+type TypeId = typeof TypeId;
 
 /**
  * Type of the path link. `Unknown` means we ignore whether the link is symbolic or real. `Symbolic` means the path of the link will be modified by fs.realPath. `Real` means the path of the link will not be modified by fs.realPath (except if it is a relative link).
@@ -33,11 +29,13 @@ type PathTargetType = 'file' | 'folder' | 'unknown';
 /**
  * A GenericPath represents a filesystem path to a file or a folder that can be real or symbolic, relative or absolute.
  * */
-export interface GenericPath<L extends PathLinkType, P extends PathPositionType, T extends PathTargetType> {
+export interface GenericPath<L extends PathLinkType, P extends PathPositionType, T extends PathTargetType>
+	extends Equal.Equal {
+	readonly [TypeId]: TypeId;
 	readonly path: string;
-	readonly [PathLinkId]: L;
-	readonly [PathPositionId]: P;
-	readonly [PathTargetId]: T;
+	readonly pathLink: L;
+	readonly pathPosition: P;
+	readonly pathTarget: T;
 }
 
 // All possible paths types: no variable set - 1 possibility
@@ -79,57 +77,65 @@ export type SymbolicRelativeFolderPath = GenericPath<'symbolic', 'relative', 'fo
  * Type guards
  * The underlying path is not modified. The result is based only on the pathLink, pathPosition and pathTarget fields
  */
-export const isPath = (u: unknown): u is Path => Predicate.hasProperty(u, PathLinkId);
+export const isPath = (u: unknown): u is Path => Predicate.hasProperty(u, TypeId);
 
-export const isFilePath = (u: Path): u is FilePath => u[PathTargetId] === 'file';
-export const isFolderPath = (u: Path): u is FolderPath => u[PathTargetId] === 'folder';
-export const isRelativePath = (u: Path): u is RelativePath => u[PathPositionId] === 'relative';
-export const isAbsolutePath = (u: Path): u is AbsolutePath => u[PathPositionId] === 'absolute';
-export const isSymbolicPath = (u: Path): u is SymbolicPath => u[PathLinkId] === 'symbolic';
-export const isRealPath = (u: Path): u is RealPath => u[PathLinkId] === 'real';
+export const isFilePath = (u: Path): u is FilePath => u.pathTarget === 'file';
+export const isFolderPath = (u: Path): u is FolderPath => u.pathTarget === 'folder';
+export const isRelativePath = (u: Path): u is RelativePath => u.pathPosition === 'relative';
+export const isAbsolutePath = (u: Path): u is AbsolutePath => u.pathPosition === 'absolute';
+export const isSymbolicPath = (u: Path): u is SymbolicPath => u.pathLink === 'symbolic';
+export const isRealPath = (u: Path): u is RealPath => u.pathLink === 'real';
 export const isAbsoluteFilePath = (u: Path): u is AbsoluteFilePath =>
-	u[PathPositionId] === 'absolute' && u[PathTargetId] === 'file';
+	u.pathPosition === 'absolute' && u.pathTarget === 'file';
 export const isRelativeFilePath = (u: Path): u is RelativeFilePath =>
-	u[PathPositionId] === 'relative' && u[PathTargetId] === 'file';
+	u.pathPosition === 'relative' && u.pathTarget === 'file';
 export const isAbsoluteFolderPath = (u: Path): u is AbsoluteFolderPath =>
-	u[PathPositionId] === 'absolute' && u[PathTargetId] === 'folder';
+	u.pathPosition === 'absolute' && u.pathTarget === 'folder';
 export const isRelativeFolderPath = (u: Path): u is RelativeFolderPath =>
-	u[PathPositionId] === 'relative' && u[PathTargetId] === 'folder';
+	u.pathPosition === 'relative' && u.pathTarget === 'folder';
 export const isSymbolicRelativePath = (u: Path): u is SymbolicRelativePath =>
-	u[PathLinkId] === 'symbolic' && u[PathPositionId] === 'relative';
+	u.pathLink === 'symbolic' && u.pathPosition === 'relative';
 export const isRealRelativePath = (u: Path): u is RealRelativePath =>
-	u[PathLinkId] === 'real' && u[PathPositionId] === 'relative';
+	u.pathLink === 'real' && u.pathPosition === 'relative';
 export const isSymbolicAbsolutePath = (u: Path): u is SymbolicAbsolutePath =>
-	u[PathLinkId] === 'symbolic' && u[PathPositionId] === 'absolute';
+	u.pathLink === 'symbolic' && u.pathPosition === 'absolute';
 export const isRealAbsolutePath = (u: Path): u is RealAbsolutePath =>
-	u[PathLinkId] === 'real' && u[PathPositionId] === 'absolute';
+	u.pathLink === 'real' && u.pathPosition === 'absolute';
 export const isSymbolicFilePath = (u: Path): u is SymbolicFilePath =>
-	u[PathLinkId] === 'symbolic' && u[PathTargetId] === 'file';
+	u.pathLink === 'symbolic' && u.pathTarget === 'file';
 export const isSymbolicFolderPath = (u: Path): u is SymbolicFolderPath =>
-	u[PathLinkId] === 'symbolic' && u[PathTargetId] === 'folder';
-export const isRealFilePath = (u: Path): u is RealFilePath => u[PathLinkId] === 'real' && u[PathTargetId] === 'file';
-export const isRealFolderPath = (u: Path): u is RealFolderPath =>
-	u[PathLinkId] === 'real' && u[PathTargetId] === 'folder';
+	u.pathLink === 'symbolic' && u.pathTarget === 'folder';
+export const isRealFilePath = (u: Path): u is RealFilePath => u.pathLink === 'real' && u.pathTarget === 'file';
+export const isRealFolderPath = (u: Path): u is RealFolderPath => u.pathLink === 'real' && u.pathTarget === 'folder';
 export const isRealRelativeFilePath = (u: Path): u is RealRelativeFilePath =>
-	u[PathLinkId] === 'real' && u[PathPositionId] === 'relative' && u[PathTargetId] === 'file';
+	u.pathLink === 'real' && u.pathPosition === 'relative' && u.pathTarget === 'file';
 export const isRealAbsoluteFilePath = (u: Path): u is RealAbsoluteFilePath =>
-	u[PathLinkId] === 'real' && u[PathPositionId] === 'absolute' && u[PathTargetId] === 'file';
+	u.pathLink === 'real' && u.pathPosition === 'absolute' && u.pathTarget === 'file';
 export const isRealAbsoluteFolderPath = (u: Path): u is RealAbsoluteFolderPath =>
-	u[PathLinkId] === 'real' && u[PathPositionId] === 'absolute' && u[PathTargetId] === 'folder';
+	u.pathLink === 'real' && u.pathPosition === 'absolute' && u.pathTarget === 'folder';
 export const isRealRelativeFolderPath = (u: Path): u is RealRelativeFolderPath =>
-	u[PathLinkId] === 'real' && u[PathPositionId] === 'relative' && u[PathTargetId] === 'folder';
+	u.pathLink === 'real' && u.pathPosition === 'relative' && u.pathTarget === 'folder';
 export const isSymbolicAbsoluteFilePath = (u: Path): u is SymbolicAbsoluteFilePath =>
-	u[PathLinkId] === 'symbolic' && u[PathPositionId] === 'absolute' && u[PathTargetId] === 'file';
+	u.pathLink === 'symbolic' && u.pathPosition === 'absolute' && u.pathTarget === 'file';
 export const isSymbolicAbsoluteFolderPath = (u: Path): u is SymbolicAbsoluteFolderPath =>
-	u[PathLinkId] === 'symbolic' && u[PathPositionId] === 'absolute' && u[PathTargetId] === 'folder';
+	u.pathLink === 'symbolic' && u.pathPosition === 'absolute' && u.pathTarget === 'folder';
 export const isSymbolicRelativeFilePath = (u: Path): u is SymbolicRelativeFilePath =>
-	u[PathLinkId] === 'symbolic' && u[PathPositionId] === 'relative' && u[PathTargetId] === 'file';
+	u.pathLink === 'symbolic' && u.pathPosition === 'relative' && u.pathTarget === 'file';
 export const isSymbolicRelativeFolderPath = (u: Path): u is SymbolicRelativeFolderPath =>
-	u[PathLinkId] === 'symbolic' && u[PathPositionId] === 'relative' && u[PathTargetId] === 'folder';
+	u.pathLink === 'symbolic' && u.pathPosition === 'relative' && u.pathTarget === 'folder';
 
 /**
  * Constructors
  */
+
+const prototype = {
+	[Equal.symbol](this: Path, that: Equal.Equal): boolean {
+		return isPath(that) ? this.path === that.path : false;
+	},
+	[Hash.symbol](this: Path): number {
+		return Hash.hash(this.path);
+	}
+};
 export const GenericPath = <L extends PathLinkType, P extends PathPositionType, T extends PathTargetType>({
 	path,
 	pathLink,
@@ -140,12 +146,14 @@ export const GenericPath = <L extends PathLinkType, P extends PathPositionType, 
 	pathLink: L;
 	pathPosition: P;
 	pathTarget: T;
-}): GenericPath<L, P, T> => ({
-	path,
-	[PathLinkId]: pathLink,
-	[PathPositionId]: pathPosition,
-	[PathTargetId]: pathTarget
-});
+}): GenericPath<L, P, T> =>
+	Object.create(prototype, {
+		[TypeId]: { value: TypeId },
+		path: { value: path },
+		pathLink: { value: pathLink },
+		pathPosition: { value: pathPosition },
+		pathTarget: { value: pathTarget }
+	}) as unknown as GenericPath<L, P, T>;
 export const Path = (path: string) =>
 	GenericPath({ path, pathLink: 'unknown', pathPosition: 'unknown', pathTarget: 'unknown' });
 export const FilePath = (path: string) =>
@@ -341,10 +349,10 @@ export const live = Layer.effect(
 					),
 					pathLink: pipe(
 						middleSegments,
-						ReadonlyArray.map((g) => g[PathLinkId]),
+						ReadonlyArray.map((g) => g.pathLink),
 						HashSet.fromIterable<PathLinkType>,
-						HashSet.add<PathLinkType>(firstSegment[PathLinkId]),
-						HashSet.add<PathLinkType>(lastSegment[PathLinkId]),
+						HashSet.add<PathLinkType>(firstSegment.pathLink),
+						HashSet.add<PathLinkType>(lastSegment.pathLink),
 						(pls) =>
 							HashSet.has(pls, 'unknown')
 								? 'unknown'
@@ -362,8 +370,8 @@ export const live = Layer.effect(
 										)
 								  )
 					) as never,
-					pathPosition: firstSegment[PathPositionId],
-					pathTarget: lastSegment[PathTargetId]
+					pathPosition: firstSegment.pathPosition,
+					pathTarget: lastSegment.pathTarget
 				}),
 			resolve: <T2 extends Exclude<PathTargetType, 'unknown'>>({
 				previousSegments,
@@ -382,25 +390,25 @@ export const live = Layer.effect(
 					),
 					pathLink: 'unknown',
 					pathPosition: 'absolute',
-					pathTarget: lastSegment[PathTargetId]
+					pathTarget: lastSegment.pathTarget
 				}),
 			toAbsolutePath: <L extends PathLinkType, T extends PathTargetType>(
 				p: GenericPath<L, Exclude<PathPositionType, 'absolute'>, T>
 			) =>
 				GenericPath({
 					path: path.resolve(p.path),
-					pathLink: p[PathLinkId],
+					pathLink: p.pathLink,
 					pathPosition: 'absolute',
-					pathTarget: p[PathTargetId]
+					pathTarget: p.pathTarget
 				}),
 			toRelativePath: <L extends PathLinkType, T extends PathTargetType>(
 				p: GenericPath<L, Exclude<PathPositionType, 'relative'>, T>
 			) =>
 				GenericPath({
 					path: path.relative('', p.path),
-					pathLink: p[PathLinkId],
+					pathLink: p.pathLink,
 					pathPosition: 'relative',
-					pathTarget: p[PathTargetId]
+					pathTarget: p.pathTarget
 				}),
 			toRealAbsolutePath: <T extends PathTargetType>(
 				p: GenericPath<'real', Exclude<PathPositionType, 'absolute'>, T> | GenericPath<'symbolic', PathPositionType, T>
@@ -412,7 +420,7 @@ export const live = Layer.effect(
 							path: realPath,
 							pathLink: 'real',
 							pathPosition: 'absolute',
-							pathTarget: p[PathTargetId]
+							pathTarget: p.pathTarget
 						})
 					)
 				),
@@ -421,7 +429,16 @@ export const live = Layer.effect(
 					folderPath.path,
 					fs.stat,
 					Effect.map((stat) =>
-						stat.type === 'File' ? Option.some({ ...folderPath, [PathTargetId]: 'file' }) : Option.none()
+						stat.type === 'File'
+							? Option.some(
+									GenericPath({
+										path: folderPath.path,
+										pathLink: folderPath.pathLink,
+										pathPosition: folderPath.pathPosition,
+										pathTarget: 'file'
+									})
+							  )
+							: Option.none()
 					)
 				),
 			toFolderPath: <L extends PathLinkType, P extends PathPositionType>(filePath: GenericPath<L, P, 'file'>) =>
@@ -429,7 +446,16 @@ export const live = Layer.effect(
 					filePath.path,
 					fs.stat,
 					Effect.map((stat) =>
-						stat.type === 'Directory' ? Option.some({ ...filePath, [PathTargetId]: 'folder' }) : Option.none()
+						stat.type === 'Directory'
+							? Option.some(
+									GenericPath({
+										path: filePath.path,
+										pathLink: filePath.pathLink,
+										pathPosition: filePath.pathPosition,
+										pathTarget: 'folder'
+									})
+							  )
+							: Option.none()
 					)
 				),
 			relative: <L1 extends PathLinkType, L2 extends PathLinkType, T2 extends PathTargetType>({
@@ -442,11 +468,11 @@ export const live = Layer.effect(
 				GenericPath({
 					path: path.relative(from.path, to.path),
 					pathLink:
-						from[PathLinkId] === 'unknown' || to[PathLinkId] === 'unknown'
+						from.pathLink === 'unknown' || to.pathLink === 'unknown'
 							? 'unknown'
 							: pipe(
-									Option.some<PathLinkType>(from[PathLinkId]),
-									Option.filter((pathLink) => pathLink === to[PathLinkId]),
+									Option.some<PathLinkType>(from.pathLink),
+									Option.filter((pathLink) => pathLink === to.pathLink),
 									Option.getOrThrowWith(
 										() =>
 											new MError.General({
@@ -455,13 +481,13 @@ export const live = Layer.effect(
 									)
 							  ),
 					pathPosition: 'relative',
-					pathTarget: to[PathTargetId]
+					pathTarget: to.pathTarget
 				}) as never,
 			dirname: <L extends PathLinkType, P extends PathPositionType>(p: GenericPath<L, P, PathTargetType>) =>
 				GenericPath({
 					path: path.dirname(p.path),
-					pathLink: p[PathLinkId],
-					pathPosition: p[PathPositionId],
+					pathLink: p.pathLink,
+					pathPosition: p.pathPosition,
 					pathTarget: 'folder'
 				}),
 			lastSegment: (p, suffix?: string) => path.basename(p.path, suffix),
