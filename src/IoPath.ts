@@ -320,7 +320,9 @@ export interface ServiceInterface {
 	 * The underlying path is converted to a fully resolved path.
 	 */
 	readonly toRealAbsolutePath: <T extends PathTargetType>(
-		path: GenericPath<'real', Exclude<PathPositionType, 'absolute'>, T> | GenericPath<'symbolic', PathPositionType, T>
+		path:
+			| GenericPath<'real', Exclude<PathPositionType, 'absolute'>, T>
+			| GenericPath<Exclude<PathLinkType, 'real'>, PathPositionType, T>
 	) => Effect.Effect<never, PlatformError, GenericPath<'real', 'absolute', T>>;
 	/**
 	 * The underlying path is not modified. Fs stat is called and if the path is a file, the pathTarget field is updated accordingly.
@@ -481,7 +483,9 @@ export const live = Layer.effect(
 					pathTarget: p.pathTarget
 				}),
 			toRealAbsolutePath: <T extends PathTargetType>(
-				p: GenericPath<'real', Exclude<PathPositionType, 'absolute'>, T> | GenericPath<'symbolic', PathPositionType, T>
+				p:
+					| GenericPath<'real', Exclude<PathPositionType, 'absolute'>, T>
+					| GenericPath<Exclude<PathLinkType, 'real'>, PathPositionType, T>
 			) =>
 				pipe(
 					fs.realPath(p.path),
