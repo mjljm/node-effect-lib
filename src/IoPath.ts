@@ -1,8 +1,7 @@
 import * as PlatformNodeFs from '@effect/platform-node/FileSystem';
 import * as PlatformNodePath from '@effect/platform-node/Path';
 import { BadArgument, PlatformError } from '@effect/platform/Error';
-import { MError, MReadonlyArray } from '@mjljm/effect-lib';
-import { Context, Effect, Equal, Hash, HashSet, Layer, Option, Predicate, ReadonlyArray, pipe } from 'effect';
+import { Context, Effect, Equal, Hash, Layer, Option, Predicate, ReadonlyArray, pipe } from 'effect';
 import { ParsedPath } from 'path';
 
 const moduleTag = '@mjljm/node-effect-lib/IoPath/';
@@ -12,6 +11,21 @@ const PlatformNodeFsService = PlatformNodeFs.FileSystem;
 
 const TypeId: unique symbol = Symbol.for(moduleTag + 'TypeId');
 type TypeId = typeof TypeId;
+
+/**
+ * Utility types and functions
+ */
+export type DevelopPath<P> = P extends GenericPath<infer X, infer Y, infer Z>
+	? Z extends unknown
+		? Y extends unknown
+			? X extends unknown
+				? GenericPath<X, Y, Z>
+				: never
+			: never
+		: never
+	: never;
+
+type DeveloppedPath = DevelopPath<Path>;
 
 /**
  * Type of the path link. `Unknown` means we ignore whether the link is symbolic or real. `Symbolic` means the path of the link will be modified by fs.realPath. `Real` means the path of the link will not be modified by fs.realPath (except if it is a relative link).
@@ -72,6 +86,36 @@ export type SymbolicAbsoluteFilePath = GenericPath<'symbolic', 'absolute', 'file
 export type SymbolicAbsoluteFolderPath = GenericPath<'symbolic', 'absolute', 'folder'>;
 export type SymbolicRelativeFilePath = GenericPath<'symbolic', 'relative', 'file'>;
 export type SymbolicRelativeFolderPath = GenericPath<'symbolic', 'relative', 'folder'>;
+
+// All negative possible negative paths types
+export type NotFilePath = Exclude<DeveloppedPath, DevelopPath<FilePath>>;
+export type NotFolderPath = Exclude<DeveloppedPath, DevelopPath<FolderPath>>;
+export type NotRelativePath = Exclude<DeveloppedPath, DevelopPath<RelativePath>>;
+export type NotAbsolutePath = Exclude<DeveloppedPath, DevelopPath<AbsolutePath>>;
+export type NotSymbolicPath = Exclude<DeveloppedPath, DevelopPath<SymbolicPath>>;
+export type NotRealPath = Exclude<DeveloppedPath, DevelopPath<RealPath>>;
+
+export type NotAbsoluteFilePath = Exclude<DeveloppedPath, DevelopPath<AbsoluteFilePath>>;
+export type NotRelativeFilePath = Exclude<DeveloppedPath, DevelopPath<RelativeFilePath>>;
+export type NotAbsoluteFolderPath = Exclude<DeveloppedPath, DevelopPath<AbsoluteFolderPath>>;
+export type NotRelativeFolderPath = Exclude<DeveloppedPath, DevelopPath<RelativeFolderPath>>;
+export type NotSymbolicRelativePath = Exclude<DeveloppedPath, DevelopPath<SymbolicRelativePath>>;
+export type NotRealRelativePath = Exclude<DeveloppedPath, DevelopPath<RealRelativePath>>;
+export type NotSymbolicAbsolutePath = Exclude<DeveloppedPath, DevelopPath<SymbolicAbsolutePath>>;
+export type NotRealAbsolutePath = Exclude<DeveloppedPath, DevelopPath<RealAbsolutePath>>;
+export type NotSymbolicFilePath = Exclude<DeveloppedPath, DevelopPath<SymbolicFilePath>>;
+export type NotSymbolicFolderPath = Exclude<DeveloppedPath, DevelopPath<SymbolicFolderPath>>;
+export type NotRealFilePath = Exclude<DeveloppedPath, DevelopPath<RealFilePath>>;
+export type NotRealFolderPath = Exclude<DeveloppedPath, DevelopPath<RealFolderPath>>;
+
+export type NotRealRelativeFilePath = Exclude<DeveloppedPath, DevelopPath<RealRelativeFilePath>>;
+export type NotRealAbsoluteFilePath = Exclude<DeveloppedPath, DevelopPath<RealAbsoluteFilePath>>;
+export type NotRealAbsoluteFolderPath = Exclude<DeveloppedPath, DevelopPath<RealAbsoluteFolderPath>>;
+export type NotRealRelativeFolderPath = Exclude<DeveloppedPath, DevelopPath<RealRelativeFolderPath>>;
+export type NotSymbolicAbsoluteFilePath = Exclude<DeveloppedPath, DevelopPath<SymbolicAbsoluteFilePath>>;
+export type NotSymbolicAbsoluteFolderPath = Exclude<DeveloppedPath, DevelopPath<SymbolicAbsoluteFolderPath>>;
+export type NotSymbolicRelativeFilePath = Exclude<DeveloppedPath, DevelopPath<SymbolicRelativeFilePath>>;
+export type NotSymbolicRelativeFolderPath = Exclude<DeveloppedPath, DevelopPath<SymbolicRelativeFolderPath>>;
 
 /**
  * Type guards
@@ -136,7 +180,7 @@ const prototype = {
 		return Hash.hash(this.path);
 	}
 };
-export const GenericPath = <L extends PathLinkType, P extends PathPositionType, T extends PathTargetType>({
+const GenericPath = <L extends PathLinkType, P extends PathPositionType, T extends PathTargetType>({
 	path,
 	pathLink,
 	pathPosition,
@@ -214,21 +258,40 @@ export interface ServiceInterface {
 	 * Join all arguments together and normalize the resulting path.
 	 *
 	 */
-	readonly join: <
-		L1 extends PathLinkType,
+	readonly joinSymbolicPaths: <
 		P1 extends Exclude<PathPositionType, 'unknown'>,
-		L2 extends PathLinkType,
-		L3 extends PathLinkType,
 		T3 extends Exclude<PathTargetType, 'unknown'>
 	>(params: {
-		readonly firstSegment: GenericPath<L1, P1, 'folder'>;
-		readonly middleSegments: ReadonlyArray<GenericPath<L2, 'relative', 'folder'>>;
-		readonly lastSegment: GenericPath<L3, 'relative', T3>;
-	}) => GenericPath<
-		'unknown' extends L1 | L2 | L3 ? 'unknown' : 'real' | 'symbolic' extends L1 | L2 | L3 ? never : L1,
-		P1,
-		T3
-	>;
+		readonly firstSegment: GenericPath<'symbolic', P1, 'folder'>;
+		readonly middleSegments: ReadonlyArray<GenericPath<'symbolic', 'relative', 'folder'>>;
+		readonly lastSegment: GenericPath<'symbolic', 'relative', T3>;
+	}) => GenericPath<'symbolic', P1, T3>;
+
+	/**
+	 * Join all arguments together and normalize the resulting path.
+	 *
+	 */
+	readonly joinRealPaths: <
+		P1 extends Exclude<PathPositionType, 'unknown'>,
+		T3 extends Exclude<PathTargetType, 'unknown'>
+	>(params: {
+		readonly firstSegment: GenericPath<'real', P1, 'folder'>;
+		readonly middleSegments: ReadonlyArray<GenericPath<'real', 'relative', 'folder'>>;
+		readonly lastSegment: GenericPath<'real', 'relative', T3>;
+	}) => GenericPath<'real', P1, T3>;
+
+	/**
+	 * Join all arguments together and normalize the resulting path.
+	 *
+	 */
+	readonly join: <
+		P1 extends Exclude<PathPositionType, 'unknown'>,
+		T3 extends Exclude<PathTargetType, 'unknown'>
+	>(params: {
+		readonly firstSegment: GenericPath<PathLinkType, P1, 'folder'>;
+		readonly middleSegments: ReadonlyArray<GenericPath<PathLinkType, 'relative', 'folder'>>;
+		readonly lastSegment: GenericPath<PathLinkType, 'relative', T3>;
+	}) => GenericPath<'unknown', P1, T3>;
 
 	/**
 	 * If lastSegment isn't already absolute, previousSegments are prepended in right to left order,
@@ -274,14 +337,26 @@ export interface ServiceInterface {
 	/**
 	 * Solves the relative path from {from} to {to}. If to or from is the zero-length string, the current working directory is used instead. At times we have two absolute paths, and we need to derive the relative path from one to the other. This is actually the reverse transform of path.resolve.
 	 */
-	readonly relative: <L1 extends PathLinkType, L2 extends PathLinkType, T2 extends PathTargetType>(params: {
-		from: GenericPath<L1, PathPositionType, PathTargetType>;
-		to: GenericPath<L2, PathPositionType, T2>;
-	}) => GenericPath<
-		'unknown' extends L1 | L2 ? 'unknown' : 'real' | 'symbolic' extends L1 | L2 ? never : L1,
-		'relative',
-		T2
-	>;
+	readonly relativeSymbolicPaths: <T2 extends PathTargetType>(params: {
+		from: GenericPath<'symbolic', PathPositionType, PathTargetType>;
+		to: GenericPath<'symbolic', PathPositionType, T2>;
+	}) => GenericPath<'symbolic', 'relative', T2>;
+
+	/**
+	 * Solves the relative path from {from} to {to}. If to or from is the zero-length string, the current working directory is used instead. At times we have two absolute paths, and we need to derive the relative path from one to the other. This is actually the reverse transform of path.resolve.
+	 */
+	readonly relativeRealPaths: <T2 extends PathTargetType>(params: {
+		from: GenericPath<'real', PathPositionType, PathTargetType>;
+		to: GenericPath<'real', PathPositionType, T2>;
+	}) => GenericPath<'real', 'relative', T2>;
+
+	/**
+	 * Solves the relative path from {from} to {to}. If to or from is the zero-length string, the current working directory is used instead. At times we have two absolute paths, and we need to derive the relative path from one to the other. This is actually the reverse transform of path.resolve.
+	 */
+	readonly relative: <T2 extends PathTargetType>(params: {
+		from: GenericPath<PathLinkType, PathPositionType, PathTargetType>;
+		to: GenericPath<PathLinkType, PathPositionType, T2>;
+	}) => GenericPath<'unknown', 'relative', T2>;
 
 	/**
 	 * Return all the segments of a path but the last.
@@ -322,21 +397,17 @@ export const live = Layer.effect(
 	Effect.gen(function* (_) {
 		const path = yield* _(PlatformNodePathService);
 		const fs = yield* _(PlatformNodeFsService);
-		return {
-			join: <
-				L1 extends PathLinkType,
-				P1 extends Exclude<PathPositionType, 'unknown'>,
-				L2 extends PathLinkType,
-				L3 extends PathLinkType,
-				T3 extends Exclude<PathTargetType, 'unknown'>
-			>({
+
+		const joinAnyPath =
+			<L extends PathLinkType>(pathLink: L) =>
+			<P1 extends Exclude<PathPositionType, 'unknown'>, T3 extends Exclude<PathTargetType, 'unknown'>>({
 				firstSegment,
 				middleSegments,
 				lastSegment
 			}: {
-				readonly firstSegment: GenericPath<L1, P1, 'folder'>;
-				readonly middleSegments: ReadonlyArray<GenericPath<L2, 'relative', 'folder'>>;
-				readonly lastSegment: GenericPath<L3, 'relative', T3>;
+				readonly firstSegment: GenericPath<PathLinkType, P1, 'folder'>;
+				readonly middleSegments: ReadonlyArray<GenericPath<PathLinkType, 'relative', 'folder'>>;
+				readonly lastSegment: GenericPath<PathLinkType, 'relative', T3>;
 			}) =>
 				GenericPath({
 					path: path.join(
@@ -347,32 +418,31 @@ export const live = Layer.effect(
 						),
 						lastSegment.path
 					),
-					pathLink: pipe(
-						middleSegments,
-						ReadonlyArray.map((g) => g.pathLink),
-						HashSet.fromIterable<PathLinkType>,
-						HashSet.add<PathLinkType>(firstSegment.pathLink),
-						HashSet.add<PathLinkType>(lastSegment.pathLink),
-						(pls) =>
-							HashSet.has(pls, 'unknown')
-								? 'unknown'
-								: pipe(
-										pls,
-										HashSet.values,
-										ReadonlyArray.fromIterable,
-										MReadonlyArray.getSingleton,
-										// We can throw because user has been warned by Typescript
-										Option.getOrThrowWith(
-											() =>
-												new MError.General({
-													message: `Method 'join' of module '${moduleTag}' must be called with paths being all 'symbolic' or 'unknown' or paths being all 'real' or 'unknown'`
-												})
-										)
-								  )
-					) as never,
+					pathLink,
 					pathPosition: firstSegment.pathPosition,
 					pathTarget: lastSegment.pathTarget
-				}),
+				});
+
+		const relativeAnyPath =
+			<L extends PathLinkType>(pathLink: L) =>
+			<T2 extends PathTargetType>({
+				from,
+				to
+			}: {
+				from: GenericPath<PathLinkType, PathPositionType, PathTargetType>;
+				to: GenericPath<PathLinkType, PathPositionType, T2>;
+			}) =>
+				GenericPath({
+					path: path.relative(from.path, to.path),
+					pathLink,
+					pathPosition: 'relative',
+					pathTarget: to.pathTarget
+				});
+
+		return {
+			joinSymbolicPaths: joinAnyPath('symbolic'),
+			joinRealPaths: joinAnyPath('real'),
+			join: joinAnyPath('unknown'),
 			resolve: <T2 extends Exclude<PathTargetType, 'unknown'>>({
 				previousSegments,
 				lastSegment
@@ -458,31 +528,9 @@ export const live = Layer.effect(
 							: Option.none()
 					)
 				),
-			relative: <L1 extends PathLinkType, L2 extends PathLinkType, T2 extends PathTargetType>({
-				from,
-				to
-			}: {
-				from: GenericPath<L1, PathPositionType, PathTargetType>;
-				to: GenericPath<L2, PathPositionType, T2>;
-			}) =>
-				GenericPath({
-					path: path.relative(from.path, to.path),
-					pathLink:
-						from.pathLink === 'unknown' || to.pathLink === 'unknown'
-							? 'unknown'
-							: pipe(
-									Option.some<PathLinkType>(from.pathLink),
-									Option.filter((pathLink) => pathLink === to.pathLink),
-									Option.getOrThrowWith(
-										() =>
-											new MError.General({
-												message: `Method 'relative' of module '${moduleTag}' must be called with paths being all 'symbolic' or 'unknown' or paths being all 'real' or 'unknown'`
-											})
-									)
-							  ),
-					pathPosition: 'relative',
-					pathTarget: to.pathTarget
-				}) as never,
+			relativeSymbolicPaths: relativeAnyPath('symbolic'),
+			relativeRealPaths: relativeAnyPath('real'),
+			relative: relativeAnyPath('unknown'),
 			dirname: <L extends PathLinkType, P extends PathPositionType>(p: GenericPath<L, P, PathTargetType>) =>
 				GenericPath({
 					path: path.dirname(p.path),
