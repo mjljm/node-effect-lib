@@ -1,6 +1,7 @@
 import * as PlatformNodeFs from '@effect/platform-node/FileSystem';
 import * as PlatformNodePath from '@effect/platform-node/Path';
 import { BadArgument, PlatformError } from '@effect/platform/Error';
+import { MFunction } from '@mjljm/effect-lib';
 import { Context, Effect, Equal, Hash, Layer, Option, Predicate, ReadonlyArray, pipe } from 'effect';
 import { ParsedPath } from 'path';
 
@@ -213,19 +214,12 @@ const prototype = {
 		return Hash.hash(this.value);
 	}
 };
-const make = <L extends PathLinkType, P extends PathPositionType, T extends PathTargetType>({
-	pathLink,
-	pathPosition,
-	pathTarget,
-	value
-}: Readonly<Omit<GenericPath<L, P, T>, TypeId | typeof Equal.symbol | typeof Hash.symbol>>): GenericPath<L, P, T> =>
-	Object.create(prototype, {
-		[TypeId]: { value: TypeId },
-		path: { value },
-		pathLink: { value: pathLink },
-		pathPosition: { value: pathPosition },
-		pathTarget: { value: pathTarget }
-	}) as GenericPath<L, P, T>;
+
+const make = <L extends PathLinkType, P extends PathPositionType, T extends PathTargetType>(
+	params: Readonly<Omit<GenericPath<L, P, T>, symbol>>
+): Readonly<GenericPath<L, P, T>> =>
+	MFunction.makeWithId<Path>(TypeId, prototype)(params) as unknown as GenericPath<L, P, T>;
+
 export const Path = (value: string) =>
 	make({ value, pathLink: 'unknown', pathPosition: 'unknown', pathTarget: 'unknown' });
 export const FilePath = (value: string) =>
