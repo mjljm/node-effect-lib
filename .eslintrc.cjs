@@ -47,7 +47,14 @@ const extraRules = {
 	'import/no-commonjs': 'error',
 	'import/no-unresolved': 'error',
 	'import/no-duplicates': 'error',
-	'@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^_' }]
+	'@typescript-eslint/no-unused-vars': [
+		'error',
+		{
+			argsIgnorePattern: '^_$',
+			varsIgnorePattern: '^_$',
+			caughtErrorsIgnorePattern: '^_$'
+		}
+	]
 };
 
 /**
