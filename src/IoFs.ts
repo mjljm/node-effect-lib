@@ -8,8 +8,6 @@ import {
 	Context,
 	Effect,
 	Either,
-	Equal,
-	Equivalence,
 	Layer,
 	Option,
 	Predicate,
@@ -32,53 +30,28 @@ export interface ServiceInterface {
 	 * Get information about a path. If resolveSymLinks=true, the info returned is not that of `path` but that of the fully resolved version of `path`
 	 */
 	readonly stat: (
-		params:
-			| { readonly path: IoPath.RealPath; readonly resolveSymLinks: false }
-			| { readonly path: IoPath.NotRealPath; readonly resolveSymLinks: boolean }
+		path: IoPath.Path,
+		resolveSymLinks?: boolean
 	) => Effect.Effect<never, PlatformError, PlatformNodeFs.File.Info>;
 
 	/**
-	 * Memoized version of stat. It's preferable to use an AbsolutePath for this function so as to avoid the following error: passing relative paths could lead to errors if the current directory changes. Note that calling stat with a symbolic link will not yield the same result as calling stat with the fully resolved path of that symbolic link. In the first case, it will indicate the path is symbolic. In the second, it will indicate what it really is.
+	 * Reads the contents of a file. See default value for encoding in NodeJs readfile doc.
 	 */
-	readonly cachedStat: (
-		params:
-			| { readonly path: IoPath.RealPath; readonly resolveSymLinks: false }
-			| { readonly path: IoPath.NotRealPath; readonly resolveSymLinks: boolean }
-	) => Effect.Effect<never, PlatformError, PlatformNodeFs.File.Info>;
-
-	/**
-	 * Read the contents of a file. See default value for encoding in NodeJs readfile doc.
-	 */
-	readonly readFileString: (params: {
-		readonly path: IoPath.FilePath;
-		readonly encoding?: string;
-	}) => Effect.Effect<never, PlatformError, string>;
-
-	/**
-	 * Memoized version of readFileString. Options need to be passed in the exact same way for caching to operate. Calling this function once without encoding and once with encoding:'utf-8' will result in two different calls. It's preferable to use a RealAbsoluteFilePath to avoid two possible errors: passing relative paths could lead to errors if the current directory changes ; passing symbolic paths could lead to caching twice the same contents if the two symbolic paths resolve to the same real path.
-	 */
-	readonly cachedReadFileString: (params: {
-		readonly path: IoPath.FilePath;
-		readonly encoding?: string;
-	}) => Effect.Effect<never, PlatformError, string>;
+	readonly readFileString: (
+		path: IoPath.FilePath,
+		encoding?: string
+	) => Effect.Effect<never, PlatformError, string>;
 
 	/**
 	 * Lists the contents of a directory. Returns the filenames and the stats of those filenames. If resolveSymLinks=true, the info returned is not that of filename but that of the fully resolved version of filename
 	 */
-	readonly readDirectory: (params: {
-		readonly path: IoPath.FolderPath;
-		readonly resolveSymLinks: boolean;
-		readonly concurrencyOptions?: { readonly concurrency?: Concurrency | undefined } | undefined;
-	}) => Effect.Effect<never, PlatformError, ReadonlyArray<[name: string, stat: PlatformNodeFs.File.Info]>>;
-
-	/**
-	 * Memoized version of readDirectory.  It's preferable to use a RealAbsoluteFolderPath to avoid two possible errors: passing relative paths could lead to errors if the current directory changes ; passing symbolic paths could lead to caching twice the same contents if two symbolic paths resolve to the same real path.
-	 */
-	readonly cachedReadDirectory: (params: {
-		readonly path: IoPath.FolderPath;
-		readonly resolveSymLinks: boolean;
-		readonly concurrencyOptions?: { readonly concurrency?: Concurrency | undefined } | undefined;
-	}) => Effect.Effect<never, PlatformError, ReadonlyArray<[name: string, stat: PlatformNodeFs.File.Info]>>;
+	readonly readDirectory: (
+		path: IoPath.FolderPath,
+		options?: {
+			readonly resolveSymLinks?: boolean;
+			readonly concurrencyOptions?: { readonly concurrency?: Concurrency | undefined } | undefined;
+		}
+	) => Effect.Effect<never, PlatformError, ReadonlyArray<[name: string, stat: PlatformNodeFs.File.Info]>>;
 
 	/**
 	 * Reads the contents of the directory at path and all directories (including symlinks) below except these excluded by dirsExclude. If useCachedReadDirectory is set, it's preferable to use a RealAbsoluteFolderPath (see cachedReadDirectory)
@@ -87,7 +60,6 @@ export interface ServiceInterface {
 		readonly path: IoPath.GenericPath<IoPath.PathLinkType, P, 'folder'>;
 		readonly dirsExclude: Predicate.Predicate<string>;
 		readonly concurrencyOptions?: { readonly concurrency?: Concurrency | undefined } | undefined;
-		readonly useCachedReadDirectory: boolean;
 	}) => Effect.Effect<
 		never,
 		PlatformError | MError.General,
@@ -106,8 +78,8 @@ export interface ServiceInterface {
 		L extends IoPath.PathLinkType,
 		P extends IoPath.PathPositionType
 	>(params: {
-		path: IoPath.GenericPath<L, P, 'folder'>;
-		isTargetDir: MEffect.Predicate<
+		readonly path: IoPath.GenericPath<L, P, 'folder'>;
+		readonly isTargetDir: MEffect.Predicate<
 			[
 				currentPath: IoPath.GenericPath<L extends 'real' ? 'real' : 'unknown', P, 'folder'>,
 				contents: ReadonlyArray<[name: string, stat: PlatformNodeFs.File.Info]>
@@ -115,8 +87,7 @@ export interface ServiceInterface {
 			R,
 			E
 		>;
-		concurrencyOptions?: { readonly concurrency?: Concurrency | undefined } | undefined;
-		readonly useCachedReadDirectory: boolean;
+		readonly concurrencyOptions?: { readonly concurrency?: Concurrency | undefined } | undefined;
 	}) => Effect.Effect<
 		R,
 		PlatformError | E | Cause.NoSuchElementException,
@@ -129,10 +100,10 @@ export interface ServiceInterface {
 	 * @param options See Node js's WatchOptions.
 	 * @returns
 	 */
-	readonly watch: (params: {
-		path: IoPath.Path;
-		options?: { recursive?: boolean; encoding?: BufferEncoding };
-	}) => Stream.Stream<never, MError.FunctionPort, [eventType: string, filename: string]>;
+	readonly watch: (
+		path: IoPath.Path,
+		options?: { readonly recursive?: boolean; readonly encoding?: BufferEncoding }
+	) => Stream.Stream<never, MError.FunctionPort, [eventType: string, filename: string]>;
 
 	/**
 	 * Checks if a path can be accessed. You can optionally specify the level of access to check for.
@@ -155,7 +126,10 @@ export interface ServiceInterface {
 	/**
 	 * Copy a file from `fromPath` to `toPath`.
 	 */
-	readonly copyFile: (fromPath: IoPath.FolderPath, toPath: IoPath.Path) => Effect.Effect<never, PlatformError, void>;
+	readonly copyFile: (
+		fromPath: IoPath.FolderPath,
+		toPath: IoPath.Path
+	) => Effect.Effect<never, PlatformError, void>;
 	/**
 	 * Change the permissions of a path.
 	 */
@@ -207,7 +181,9 @@ export interface ServiceInterface {
 	 * The directory creation is functionally equivalent to `makeTempDirectory`.
 	 * The file name will be a randomly generated string.
 	 */
-	readonly makeTempFile: (options?: PlatformNodeFs.MakeTempFileOptions) => Effect.Effect<never, PlatformError, string>;
+	readonly makeTempFile: (
+		options?: PlatformNodeFs.MakeTempFileOptions
+	) => Effect.Effect<never, PlatformError, string>;
 	/**
 	 * Create a temporary file inside a scope.
 	 *
@@ -325,61 +301,39 @@ export const live = Layer.effect(
 		const ioPath = yield* _(IoPath.Service);
 		const ioOs = yield* _(IoOs.Service);
 
-		const stat: ServiceInterface['stat'] = ({ path, resolveSymLinks }) =>
+		const stat: ServiceInterface['stat'] = (path, resolveSymLinks = false) =>
 			Effect.gen(function* (_) {
-				const finalPath = resolveSymLinks ? yield* _(ioPath.toRealAbsolutePath(path)) : path;
+				const finalPath =
+					IoPath.isNotRealPath(path) && resolveSymLinks === true
+						? yield* _(ioPath.toRealAbsolutePath(path))
+						: path;
 				return yield* _(finalPath.value, fs.stat);
 			});
 
-		const cachedStat = yield* _(
-			Effect.cachedFunction(
-				stat as ServiceInterface['cachedStat'],
-				Equivalence.make(
-					(self, that) => Equal.equals(self.path, that.path) && self.resolveSymLinks === that.resolveSymLinks
-				)
-			)
-		);
-
-		const readFileString: ServiceInterface['readFileString'] = ({ encoding, path }) =>
+		const readFileString: ServiceInterface['readFileString'] = (path, encoding) =>
 			fs.readFileString(path.value, encoding);
 
-		const cachedReadFileString = yield* _(
-			Effect.cachedFunction(
-				readFileString as ServiceInterface['cachedReadFileString'],
-				Equivalence.make((self, that) => Equal.equals(self.path, that.path) && self.encoding === that.encoding)
-			)
-		);
-
-		const readDirectory: ServiceInterface['readDirectory'] = ({ concurrencyOptions, path, resolveSymLinks }) =>
+		const readDirectory: ServiceInterface['readDirectory'] = (path, options = { resolveSymLinks: false }) =>
 			Effect.gen(function* (_) {
 				const subPaths = yield* _(fs.readDirectory(path.value));
 				const stats = yield* _(
 					subPaths,
 					ReadonlyArray.map((subPath) =>
-						stat({
-							path: ioPath.resolve({
+						stat(
+							ioPath.resolve({
 								previousSegments: ReadonlyArray.of(path),
-								lastSegment: IoPath.RelativeFilePath(subPath)
+								lastSegment: IoPath.unsafeRelativeFilePath(subPath)
 							}),
-							resolveSymLinks
-						})
+							options.resolveSymLinks
+						)
 					),
-					Effect.allWith(concurrencyOptions)
+					Effect.allWith(options.concurrencyOptions)
 				);
 
 				return ReadonlyArray.zip(subPaths, stats);
 			});
 
-		const cachedReadDirectory = yield* _(
-			Effect.cachedFunction(
-				readDirectory as ServiceInterface['cachedReadDirectory'],
-				Equivalence.make(
-					(self, that) => Equal.equals(self.path, that.path) && self.resolveSymLinks === that.resolveSymLinks
-				)
-			)
-		);
-
-		const glob: ServiceInterface['glob'] = ({ concurrencyOptions, dirsExclude, path, useCachedReadDirectory }) =>
+		const glob: ServiceInterface['glob'] = ({ concurrencyOptions, dirsExclude, path }) =>
 			pipe(
 				MEffect.unfoldTree({
 					seed: path,
@@ -391,12 +345,7 @@ export const live = Layer.effect(
 										message: `Circularity detected from directory:'${path.value}' in function 'glob' of module '${moduleTag}'. Path '${nextSeed.value}' was met twice.`
 									})
 								);
-							const dirContents = yield* _(
-								useCachedReadDirectory
-									? cachedReadDirectory({ path: nextSeed, resolveSymLinks: true, concurrencyOptions })
-									: readDirectory({ path: nextSeed, resolveSymLinks: true, concurrencyOptions })
-							);
-
+							const dirContents = yield* _(readDirectory(nextSeed, { resolveSymLinks: true, concurrencyOptions }));
 							return pipe(
 								dirContents,
 								ReadonlyArray.partition(([_, stat]) => stat.type === 'Directory'),
@@ -406,7 +355,7 @@ export const live = Layer.effect(
 											Tuple.make(
 												ioPath.join({
 													firstSegment: nextSeed,
-													lastSegment: IoPath.make({
+													lastSegment: IoPath.unsafeGenericPath({
 														value: name,
 														pathLink: 'unknown',
 														pathPosition: 'relative',
@@ -423,7 +372,7 @@ export const live = Layer.effect(
 												Option.map((name) =>
 													ioPath.join({
 														firstSegment: nextSeed,
-														lastSegment: IoPath.make({
+														lastSegment: IoPath.unsafeGenericPath({
 															value: name,
 															pathLink: 'unknown',
 															pathPosition: 'relative',
@@ -445,8 +394,7 @@ export const live = Layer.effect(
 		const readDirectoriesUpwardWhile: ServiceInterface['readDirectoriesUpwardWhile'] = ({
 			concurrencyOptions,
 			isTargetDir,
-			path,
-			useCachedReadDirectory
+			path
 		}) =>
 			pipe(
 				Stream.iterate(path as IoPath.FolderPath, (currentPath) => ioPath.dirname(currentPath)),
@@ -454,9 +402,7 @@ export const live = Layer.effect(
 				Stream.mapEffect((currentpath) =>
 					pipe(
 						// Set resolveSymLinks to get more accurate info about the contained paths and share the cache with glob
-						useCachedReadDirectory
-							? cachedReadDirectory({ path: currentpath, resolveSymLinks: true, concurrencyOptions })
-							: readDirectory({ path: currentpath, resolveSymLinks: true, concurrencyOptions }),
+						readDirectory(currentpath, { resolveSymLinks: true, concurrencyOptions }),
 						Effect.flatMap((files) => isTargetDir(Tuple.make(currentpath as never, files))),
 						Effect.map((isTargetDir) => Tuple.make(currentpath, isTargetDir))
 					)
@@ -467,7 +413,7 @@ export const live = Layer.effect(
 				Effect.map(([path]) => path as never)
 			);
 
-		const watch: ServiceInterface['watch'] = ({ options, path }) =>
+		const watch: ServiceInterface['watch'] = (path, options) =>
 			Stream.asyncInterrupt<never, MError.FunctionPort, [eventType: string, filename: string]>((emit) => {
 				const watcher = nodeFs.watch(path.value, { ...options, persistent: false });
 
@@ -491,11 +437,8 @@ export const live = Layer.effect(
 
 		return {
 			stat,
-			cachedStat,
 			readFileString,
-			cachedReadFileString,
 			readDirectory,
-			cachedReadDirectory,
 			glob,
 			readDirectoriesUpwardWhile,
 			watch,
