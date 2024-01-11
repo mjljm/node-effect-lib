@@ -8,6 +8,7 @@ import {
 	Context,
 	Effect,
 	Either,
+	Equal,
 	Layer,
 	Option,
 	Predicate,
@@ -78,7 +79,7 @@ export interface ServiceInterface {
 		L extends IoPath.PathLinkType,
 		P extends IoPath.PathPositionType
 	>(params: {
-		readonly path: IoPath.GenericPath<L, P, 'folder'>;
+		readonly path: IoPath.GenericPath<L, 'absolute', 'folder'>;
 		readonly isTargetDir: MEffect.Predicate<
 			[
 				currentPath: IoPath.GenericPath<L extends 'real' ? 'real' : 'unknown', P, 'folder'>,
@@ -319,13 +320,7 @@ export const live = Layer.effect(
 				const stats = yield* _(
 					subPaths,
 					ReadonlyArray.map((subPath) =>
-						stat(
-							ioPath.resolve({
-								previousSegments: ReadonlyArray.of(path),
-								lastSegment: IoPath.unsafeRelativeFilePath(subPath)
-							}),
-							options.resolveSymLinks
-						)
+						stat(ioPath.resolve(path, IoPath.unsafeRelativeFilePath(subPath)), options.resolveSymLinks)
 					),
 					Effect.allWith(options.concurrencyOptions)
 				);
@@ -353,15 +348,15 @@ export const live = Layer.effect(
 									Tuple.make(
 										ReadonlyArray.map(files, ([name, stat]) =>
 											Tuple.make(
-												ioPath.join({
-													firstSegment: nextSeed,
-													lastSegment: IoPath.unsafeGenericPath({
+												ioPath.join(
+													nextSeed,
+													IoPath.unsafeGenericPath({
 														value: name,
 														pathLink: 'unknown',
 														pathPosition: 'relative',
 														pathTarget: 'file'
 													})
-												}),
+												),
 												stat
 											)
 										),
@@ -370,15 +365,15 @@ export const live = Layer.effect(
 												name,
 												Option.liftPredicate((name) => !dirsExclude(name)),
 												Option.map((name) =>
-													ioPath.join({
-														firstSegment: nextSeed,
-														lastSegment: IoPath.unsafeGenericPath({
+													ioPath.join(
+														nextSeed,
+														IoPath.unsafeGenericPath({
 															value: name,
 															pathLink: 'unknown',
 															pathPosition: 'relative',
 															pathTarget: 'folder'
 														})
-													})
+													)
 												)
 											)
 										)
@@ -398,7 +393,7 @@ export const live = Layer.effect(
 		}) =>
 			pipe(
 				Stream.iterate(path as IoPath.FolderPath, (currentPath) => ioPath.dirname(currentPath)),
-				Stream.takeUntil(({ value }) => value === ioOs.homeDir || value === ioOs.rootDir),
+				Stream.takeUntil((path) => Equal.equals(path, ioOs.homeDir) || Equal.equals(path, ioOs.rootDir)),
 				Stream.mapEffect((currentpath) =>
 					pipe(
 						// Set resolveSymLinks to get more accurate info about the contained paths and share the cache with glob

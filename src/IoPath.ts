@@ -226,6 +226,7 @@ export const isNotSymbolicRelativeFolderPath = (u: Path): u is NotSymbolicRelati
  */
 
 const prototype = {
+	// Two paths are considered equal if their values are equal. For relative paths, this is only true if the current directory does not change
 	[Equal.symbol](this: Path, that: Equal.Equal): boolean {
 		return isPath(that) ? this.value === that.value : false;
 	},
@@ -303,35 +304,88 @@ export interface ServiceInterface {
 	 * Join all arguments together and normalize the resulting path. Going up, a real path can only joined with a real, symbolic or unknown path but the result will always be a real path. Going down, a real path can be joined with a path that can be real, symbolic or unknown, which leads to a real, symbolic or unknown path. Going up, a symbolic path can be joined with a path that can be real, symbolic or unknown, which leads to a real, symbolic or unknown path. Going down, a symbolic path can be joined with a real, symbolic or unknown path but it will remain a symbolic path. Going up or down, a path with an unknown link is always unknown. To go up just one segment, prefer using dirname.
 	 *
 	 */
-	readonly join: <
-		L1 extends PathLinkType,
-		P1 extends PathPositionType,
-		L2 extends PathLinkType,
-		L3 extends PathLinkType,
-		T3 extends PathTargetType
-	>(params: {
-		readonly firstSegment: GenericPath<L1, P1, 'folder'>;
-		readonly middleSegments?: ReadonlyArray<GenericPath<L2, 'relative', 'folder'>>;
-		readonly lastSegment: GenericPath<L3, 'relative', T3>;
-	}) => GenericPath<
-		[L1, L2, L3] extends ['real', 'real', 'real']
-			? 'real'
-			: [L1, L2, L3] extends ['symbolic', 'symbolic', 'symbolic']
-			  ? 'symbolic'
-			  : 'unknown',
-		P1,
-		T3
-	>;
+	readonly join: {
+		<L1 extends PathLinkType, P1 extends PathPositionType, Ln extends PathLinkType, TN extends PathTargetType>(
+			path1: GenericPath<L1, P1, 'folder'>,
+			pathN: GenericPath<Ln, 'relative', TN>
+		): GenericPath<
+			[L1, Ln] extends ['real', 'real']
+				? 'real'
+				: [L1, Ln] extends ['symbolic', 'symbolic']
+				  ? 'symbolic'
+				  : 'unknown',
+			P1,
+			TN
+		>;
+		<
+			L1 extends PathLinkType,
+			P1 extends PathPositionType,
+			L2 extends PathLinkType,
+			Ln extends PathLinkType,
+			TN extends PathTargetType
+		>(
+			path1: GenericPath<L1, P1, 'folder'>,
+			path2: GenericPath<L2, 'relative', 'folder'>,
+			pathN: GenericPath<Ln, 'relative', TN>
+		): GenericPath<
+			[L1, L2, Ln] extends ['real', 'real', 'real']
+				? 'real'
+				: [L1, L2, Ln] extends ['symbolic', 'symbolic', 'symbolic']
+				  ? 'symbolic'
+				  : 'unknown',
+			P1,
+			TN
+		>;
+		<
+			L1 extends PathLinkType,
+			P1 extends PathPositionType,
+			L2 extends PathLinkType,
+			L3 extends PathLinkType,
+			Ln extends PathLinkType,
+			TN extends PathTargetType
+		>(
+			path1: GenericPath<L1, P1, 'folder'>,
+			path2: GenericPath<L2, 'relative', 'folder'>,
+			path3: GenericPath<L2, 'relative', 'folder'>,
+			pathN: GenericPath<Ln, 'relative', TN>
+		): GenericPath<
+			[L1, L2, L3, Ln] extends ['real', 'real', 'real', 'real']
+				? 'real'
+				: [L1, L2, L3, Ln] extends ['symbolic', 'symbolic', 'symbolic', 'symbolic']
+				  ? 'symbolic'
+				  : 'unknown',
+			P1,
+			TN
+		>;
+	};
 
 	/**
 	 * If lastSegment isn't already absolute, previousSegments are prepended in right to left order, until an absolute path is found. If after using all previousSegments paths still no absolute path is found, the current working directory is used as well. The resulting path is normalized, and trailing slashes are removed unless the path gets resolved to the root directory. If you know that the first segment is absolute, prefer using join
 	 */
-	readonly resolve: <T2 extends PathTargetType>(params: {
-		readonly previousSegments:
-			| ReadonlyArray<GenericPath<PathLinkType, PathPositionType, 'folder'>>
-			| GenericPath<PathLinkType, PathPositionType, 'folder'>;
-		readonly lastSegment: GenericPath<PathLinkType, PathPositionType, T2>;
-	}) => GenericPath<'unknown', 'absolute', T2>;
+	readonly resolve: {
+		<TN extends PathTargetType>(
+			path1: GenericPath<PathLinkType, PathPositionType, 'folder'>,
+			pathN: GenericPath<PathLinkType, PathPositionType, TN>
+		): GenericPath<'unknown', 'absolute', TN>;
+		<TN extends PathTargetType>(
+			path1: GenericPath<PathLinkType, PathPositionType, 'folder'>,
+			path2: GenericPath<PathLinkType, PathPositionType, 'folder'>,
+			pathN: GenericPath<PathLinkType, PathPositionType, TN>
+		): GenericPath<'unknown', 'absolute', TN>;
+		<TN extends PathTargetType>(
+			path1: GenericPath<PathLinkType, PathPositionType, 'folder'>,
+			path2: GenericPath<PathLinkType, PathPositionType, 'folder'>,
+			path3: GenericPath<PathLinkType, PathPositionType, 'folder'>,
+			pathN: GenericPath<PathLinkType, PathPositionType, TN>
+		): GenericPath<'unknown', 'absolute', TN>;
+		<TN extends PathTargetType>(
+			path1: GenericPath<PathLinkType, PathPositionType, 'folder'>,
+			path2: GenericPath<PathLinkType, PathPositionType, 'folder'>,
+			path3: GenericPath<PathLinkType, PathPositionType, 'folder'>,
+			path4: GenericPath<PathLinkType, PathPositionType, 'folder'>,
+			pathN: GenericPath<PathLinkType, PathPositionType, TN>
+		): GenericPath<'unknown', 'absolute', TN>;
+	};
 
 	/**
 	 * The underlying path is converted to an absolute path based on the current directory.
@@ -357,22 +411,22 @@ export interface ServiceInterface {
 	 * The underlying path is not modified. Fs stat is called and if the path is a file, the pathTarget field is updated accordingly.
 	 */
 	readonly toFilePath: <L extends PathLinkType, P extends PathPositionType>(
-		folderPath: GenericPath<L, P, 'folder'>
+		path: GenericPath<L, P, 'folder'>
 	) => Effect.Effect<never, PlatformError, Option.Option<GenericPath<L, P, 'file'>>>;
 	/**
 	 * The underlying path is not modified. Fs stat is called and if the path is a folder, the pathTarget field is updated accordingly.
 	 */
 	readonly toFolderPath: <L extends PathLinkType, P extends PathPositionType>(
-		filePath: GenericPath<L, P, 'file'>
+		path: GenericPath<L, P, 'file'>
 	) => Effect.Effect<never, PlatformError, Option.Option<GenericPath<L, P, 'folder'>>>;
 
 	/**
 	 * Solves the relative path from {from} to {to}. If to or from is the zero-length string (with 'unknown' PathLinkType), the current working directory is used instead. At times we have two absolute paths, and we need to derive the relative path from one to the other. This is actually the reverse transform of path.resolve. If to or from is symbolic, the result is symbolic (but can be real at the same time). If to and from are real, the result is real. If to and from are both unknown, the resulting path has unknown PathLinkType.
 	 */
-	readonly relative: <L1 extends PathLinkType, L2 extends PathLinkType, T2 extends PathTargetType>(params: {
-		from: GenericPath<L1, PathPositionType, PathTargetType>;
-		to: GenericPath<L2, PathPositionType, T2>;
-	}) => GenericPath<
+	readonly relative: <L1 extends PathLinkType, L2 extends PathLinkType, T2 extends PathTargetType>(
+		from: GenericPath<L1, PathPositionType, PathTargetType>,
+		to: GenericPath<L2, PathPositionType, T2>
+	) => GenericPath<
 		[L1, L2] extends ['real', 'real'] ? 'real' : [L1, L2] extends ['unknown', 'unknown'] ? 'unknown' : 'symbolic',
 		'relative',
 		T2
@@ -419,43 +473,27 @@ export const live = Layer.effect(
 		const fs = yield* _(PlatformNodeFsService);
 
 		return {
-			join: ({ firstSegment, lastSegment, middleSegments = ReadonlyArray.empty() }) =>
+			join: (...segments: ReadonlyArray<Path>) =>
 				unsafeGenericPath({
-					value: path.join(
-						firstSegment.value,
-						...pipe(
-							middleSegments,
-							ReadonlyArray.map((g) => g.value)
-						),
-						lastSegment.value
-					),
+					value: path.join(...ReadonlyArray.map(segments, (g) => g.value)),
 					pathLink: pipe(
-						middleSegments,
-						ReadonlyArray.map((s) => s.pathLink as PathLinkType),
+						segments,
+						ReadonlyArray.map((s) => s.pathLink),
 						HashSet.fromIterable,
-						// Remove arrow functions when Effect has propagated NoInfer to HashSet
-						(h) => HashSet.add(h, firstSegment.pathLink),
-						(h) => HashSet.add(h, lastSegment.pathLink),
 						HashSet.values,
 						ReadonlyArray.fromIterable,
 						MReadonlyArray.getSingleton,
 						Option.getOrElse(() => 'unknown')
 					) as never,
-					pathPosition: firstSegment.pathPosition,
-					pathTarget: lastSegment.pathTarget
+					pathPosition: ReadonlyArray.unsafeGet(segments, 0).pathPosition,
+					pathTarget: ReadonlyArray.unsafeGet(segments, segments.length - 1).pathTarget
 				}),
-			resolve: ({ lastSegment, previousSegments }) =>
+			resolve: (...segments: ReadonlyArray<Path>) =>
 				unsafeGenericPath({
-					value: path.resolve(
-						...pipe(
-							MFunction.isArray(previousSegments) ? previousSegments : ReadonlyArray.of(previousSegments),
-							ReadonlyArray.map((g) => g.value)
-						),
-						lastSegment.value
-					),
+					value: path.resolve(...ReadonlyArray.map(segments, (g) => g.value)),
 					pathLink: 'unknown',
 					pathPosition: 'absolute',
-					pathTarget: lastSegment.pathTarget
+					pathTarget: ReadonlyArray.unsafeGet(segments, segments.length - 1).pathTarget
 				}),
 			toAbsolutePath: (p) =>
 				unsafeGenericPath({
@@ -471,11 +509,7 @@ export const live = Layer.effect(
 					pathPosition: 'relative',
 					pathTarget: p.pathTarget
 				}),
-			toRealAbsolutePath: <T extends PathTargetType>(
-				p:
-					| GenericPath<'real', Exclude<PathPositionType, 'absolute'>, T>
-					| GenericPath<Exclude<PathLinkType, 'real'>, PathPositionType, T>
-			) =>
+			toRealAbsolutePath: (p) =>
 				pipe(
 					fs.realPath(p.value),
 					Effect.map((realPath) =>
@@ -487,41 +521,41 @@ export const live = Layer.effect(
 						})
 					)
 				),
-			toFilePath: <L extends PathLinkType, P extends PathPositionType>(folderPath: GenericPath<L, P, 'folder'>) =>
+			toFilePath: (path) =>
 				pipe(
-					folderPath.value,
+					path.value,
 					fs.stat,
 					Effect.map((stat) =>
 						stat.type === 'File'
 							? Option.some(
 									unsafeGenericPath({
-										value: folderPath.value,
-										pathLink: folderPath.pathLink,
-										pathPosition: folderPath.pathPosition,
+										value: path.value,
+										pathLink: path.pathLink,
+										pathPosition: path.pathPosition,
 										pathTarget: 'file'
 									})
 							  )
 							: Option.none()
 					)
 				),
-			toFolderPath: <L extends PathLinkType, P extends PathPositionType>(filePath: GenericPath<L, P, 'file'>) =>
+			toFolderPath: (path) =>
 				pipe(
-					filePath.value,
+					path.value,
 					fs.stat,
 					Effect.map((stat) =>
 						stat.type === 'Directory'
 							? Option.some(
 									unsafeGenericPath({
-										value: filePath.value,
-										pathLink: filePath.pathLink,
-										pathPosition: filePath.pathPosition,
+										value: path.value,
+										pathLink: path.pathLink,
+										pathPosition: path.pathPosition,
 										pathTarget: 'folder'
 									})
 							  )
 							: Option.none()
 					)
 				),
-			relative: ({ from, to }) =>
+			relative: (from, to) =>
 				unsafeGenericPath({
 					value: path.relative(from.value, to.value),
 					pathLink: ((from.pathLink as PathLinkType) === (to.pathLink as PathLinkType)
@@ -530,7 +564,7 @@ export const live = Layer.effect(
 					pathPosition: 'relative',
 					pathTarget: to.pathTarget
 				}),
-			dirname: <L extends PathLinkType, P extends PathPositionType>(p: GenericPath<L, P, PathTargetType>) =>
+			dirname: (p) =>
 				unsafeGenericPath({
 					value: path.dirname(p.value),
 					pathLink: (p.pathLink === 'real' ? 'real' : 'unknown') as never,
