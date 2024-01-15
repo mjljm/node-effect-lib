@@ -61,30 +61,27 @@ export type FragmentFolderPath = GenericPath<PathLinkType, 'fragment', 'folder'>
 export type RealAbsoluteFilePath = GenericPath<'real', 'absolute', 'file'>;
 export type RealAbsoluteFolderPath = GenericPath<'real', 'absolute', 'folder'>;
 
-export type ResolvableFilePath = AbsoluteFilePath | RelativeFilePath;
-export type ResolvableFolderPath = AbsoluteFolderPath | RelativeFolderPath;
-export type ResolvablePath = ResolvableFilePath | ResolvableFolderPath;
+export type ResolvableFilePath = GenericPath<PathLinkType, 'absolute' | 'relative', 'file'>;
+export type ResolvableFolderPath = GenericPath<PathLinkType, 'absolute' | 'relative', 'folder'>;
+export type ResolvablePath = GenericPath<PathLinkType, 'absolute' | 'relative', 'file' | 'folder'>;
+export type ResolvableSymbolicPath = GenericPath<'symbolic', 'absolute' | 'relative', 'file' | 'folder'>;
+export type FragmentPath = GenericPath<PathLinkType, 'fragment', 'file' | 'folder'>;
 
 /**
  * Utility types
  */
-export type PathLink<G extends Path> = G extends GenericPath<infer L, PathPositionType, PathTargetType>
-	? L
-	: never;
-export type PathPosition<G extends Path> = G extends GenericPath<PathLinkType, infer P, PathTargetType>
-	? P
-	: never;
-export type PathTarget<G extends Path> = G extends GenericPath<PathLinkType, PathPositionType, infer T>
-	? T
-	: never;
+export type PathLink<G extends Path> =
+	G extends GenericPath<infer L, PathPositionType, PathTargetType> ? L : never;
+export type PathPosition<G extends Path> =
+	G extends GenericPath<PathLinkType, infer P, PathTargetType> ? P : never;
+export type PathTarget<G extends Path> =
+	G extends GenericPath<PathLinkType, PathPositionType, infer T> ? T : never;
 
-export type ToFile<G extends Path> = G extends GenericPath<infer L, infer P, PathTargetType>
-	? GenericPath<L, P, 'file'>
-	: never;
+export type ToFile<G extends Path> =
+	G extends GenericPath<infer L, infer P, PathTargetType> ? GenericPath<L, P, 'file'> : never;
 
-export type ToFolder<G extends Path> = G extends GenericPath<infer L, infer P, PathTargetType>
-	? GenericPath<L, P, 'folder'>
-	: never;
+export type ToFolder<G extends Path> =
+	G extends GenericPath<infer L, infer P, PathTargetType> ? GenericPath<L, P, 'folder'> : never;
 
 // All possible negative paths types
 /*export type NotFilePath = GenericPath<PathLinkType, Exclude<PathTargetType, 'file'>>;
@@ -221,9 +218,7 @@ export interface ServiceInterface {
 	 * The underlying path is converted to a fully resolved path.
 	 */
 	readonly toRealAbsolutePath: <T extends PathTargetType>(
-		path:
-			| GenericPath<'real', Exclude<PathPositionType, 'absolute'>, T>
-			| GenericPath<Exclude<PathLinkType, 'real'>, PathPositionType, T>
+		path: GenericPath<PathLinkType, Exclude<PathPositionType, 'fragment'>, T>
 	) => Effect.Effect<never, PlatformError, GenericPath<'real', 'absolute', T>>;
 
 	/**
@@ -236,8 +231,8 @@ export interface ServiceInterface {
 		[L1, L2] extends ['real', 'real']
 			? 'real'
 			: [L1, L2] extends ['real', 'symbolic'] | ['symbolic' | 'real']
-			  ? 'symbolic'
-			  : PathLinkType,
+				? 'symbolic'
+				: PathLinkType,
 		'relative',
 		T2
 	>;
