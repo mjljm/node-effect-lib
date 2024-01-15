@@ -3,6 +3,7 @@ import * as PlatformNodeFs from '@effect/platform-node/FileSystem';
 import { PlatformError } from '@effect/platform/Error';
 import * as PlatformFs from '@effect/platform/FileSystem';
 import { MEffect, MError, Tree } from '@mjljm/effect-lib';
+import { TypedPath } from '@mjljm/js-lib';
 import {
 	Cause,
 	Context,
@@ -30,18 +31,20 @@ export interface ServiceInterface {
 	/**
 	 * Get information about a path. Always follows symbolic links
 	 */
-	readonly stat: (path: IoPath.ResolvablePath) => Effect.Effect<never, PlatformError, PlatformNodeFs.File.Info>;
+	readonly stat: (path: TypedPath.ResolvablePath) => Effect.Effect<never, PlatformError, PlatformNodeFs.File.Info>;
 
 	/**
 	 * Get information about a path. Does not follow symbolic links
 	 */
-	readonly lstat: (path: IoPath.ResolvablePath) => Effect.Effect<never, PlatformError, PlatformNodeFs.File.Info>;
+	readonly lstat: (
+		path: TypedPath.ResolvablePath
+	) => Effect.Effect<never, PlatformError, PlatformNodeFs.File.Info>;
 
 	/**
 	 * Reads the contents of a file. See default value for encoding in NodeJs readfile doc.
 	 */
 	readonly readFileString: (
-		path: IoPath.ResolvableFilePath,
+		path: TypedPath.ResolvableFilePath,
 		encoding?: string
 	) => Effect.Effect<never, PlatformError, string>;
 
@@ -49,32 +52,32 @@ export interface ServiceInterface {
 	 * Lists the contents of a directory.
 	 */
 	readonly readDirectory: (
-		path: IoPath.ResolvableFolderPath
-	) => Effect.Effect<never, PlatformError, ReadonlyArray<IoPath.FragmentPath>>;
+		path: TypedPath.ResolvableFolderPath
+	) => Effect.Effect<never, PlatformError, ReadonlyArray<TypedPath.PathFragment>>;
 
 	/**
 	 * Same as readDirectory but also returns files' stats
 	 */
 	readonly readDirectoryWithStats: (
-		path: IoPath.ResolvableFolderPath,
+		path: TypedPath.ResolvableFolderPath,
 		concurrencyOptions?: { readonly concurrency?: Concurrency }
 	) => Effect.Effect<
 		never,
 		PlatformError,
-		ReadonlyArray<[fragment: IoPath.FragmentPath, stat: PlatformNodeFs.File.Info]>
+		ReadonlyArray<[fragment: TypedPath.PathFragment, stat: PlatformNodeFs.File.Info]>
 	>;
 
 	/**
 	 * Reads the contents of the directory at path and all directories (including symlinks) below except these excluded by dirsExclude. If useCachedReadDirectory is set, it's preferable to use a RealAbsoluteFolderPath (see cachedReadDirectory)
 	 */
-	readonly glob: <P extends Exclude<IoPath.PathPositionType, 'fragment'>>(params: {
-		readonly path: IoPath.GenericPath<IoPath.PathLinkType, P, 'folder'>;
-		readonly dirsExclude: Predicate.Predicate<IoPath.FragmentFolderPath>;
+	readonly glob: <P extends Exclude<TypedPath.PathPositionType, 'fragment'>>(params: {
+		readonly path: TypedPath.TypedPath<TypedPath.PathLinkType, P, 'folder'>;
+		readonly dirsExclude: Predicate.Predicate<TypedPath.FolderPathFragment>;
 		readonly concurrencyOptions?: { readonly concurrency?: Concurrency };
 	}) => Effect.Effect<
 		never,
 		PlatformError | MError.General,
-		ReadonlyArray<[path: IoPath.GenericPath<IoPath.PathLinkType, P, 'file'>, stat: PlatformNodeFs.File.Info]>
+		ReadonlyArray<[path: TypedPath.TypedPath<TypedPath.PathLinkType, P, 'file'>, stat: PlatformNodeFs.File.Info]>
 	>;
 
 	/**
@@ -83,12 +86,16 @@ export interface ServiceInterface {
 	 * @param isTargetDir Function that returns an effectful false to stop the search, or an effectful true to continue
 	 * @returns the matching path if found. Returns Cause.NoSuchElementException otherwise
 	 */
-	readonly readDirectoriesUpwardWhile: <R, E, L extends IoPath.PathLinkType>(params: {
-		readonly path: IoPath.GenericPath<L, 'absolute', 'folder'>;
+	readonly readDirectoriesUpwardWhile: <R, E, L extends TypedPath.PathLinkType>(params: {
+		readonly path: TypedPath.TypedPath<L, 'absolute', 'folder'>;
 		readonly isTargetDir: MEffect.Predicate<
 			[
-				currentPath: IoPath.GenericPath<[L] extends ['real'] ? 'real' : IoPath.PathLinkType, 'absolute', 'folder'>,
-				contents: ReadonlyArray<[name: IoPath.FragmentPath, stat: PlatformNodeFs.File.Info]>
+				currentPath: TypedPath.TypedPath<
+					[L] extends ['real'] ? 'real' : TypedPath.PathLinkType,
+					'absolute',
+					'folder'
+				>,
+				contents: ReadonlyArray<[name: TypedPath.PathFragment, stat: PlatformNodeFs.File.Info]>
 			],
 			R,
 			E
@@ -97,7 +104,7 @@ export interface ServiceInterface {
 	}) => Effect.Effect<
 		R,
 		PlatformError | E | Cause.NoSuchElementException,
-		IoPath.GenericPath<[L] extends ['real'] ? 'real' : IoPath.PathLinkType, 'absolute', 'folder'>
+		TypedPath.TypedPath<[L] extends ['real'] ? 'real' : TypedPath.PathLinkType, 'absolute', 'folder'>
 	>;
 
 	/**
@@ -107,7 +114,7 @@ export interface ServiceInterface {
 	 * @returns
 	 */
 	readonly watch: (
-		path: IoPath.ResolvablePath,
+		path: TypedPath.ResolvablePath,
 		options?: { readonly recursive?: boolean; readonly encoding?: BufferEncoding }
 	) => Stream.Stream<never, MError.FunctionPort, [eventType: string, filename: string]>;
 
@@ -115,7 +122,7 @@ export interface ServiceInterface {
 	 * Checks if a path can be accessed. You can optionally specify the level of access to check for.
 	 */
 	readonly access: (
-		path: IoPath.ResolvablePath,
+		path: TypedPath.ResolvablePath,
 		options?: PlatformFs.AccessFileOptions
 	) => Effect.Effect<never, PlatformError, void>;
 
@@ -125,46 +132,46 @@ export interface ServiceInterface {
 	 * Equivalent to `cp -r`.
 	 */
 	readonly copy: (
-		fromPath: IoPath.ResolvableFolderPath,
-		toPath: IoPath.ResolvableFolderPath,
+		fromPath: TypedPath.ResolvableFolderPath,
+		toPath: TypedPath.ResolvableFolderPath,
 		options?: PlatformFs.CopyOptions
 	) => Effect.Effect<never, PlatformError, void>;
 	/**
 	 * Copy a file from `fromPath` to `toPath`.
 	 */
 	readonly copyFile: (
-		fromPath: IoPath.ResolvableFolderPath,
-		toPath: IoPath.ResolvablePath
+		fromPath: TypedPath.ResolvableFolderPath,
+		toPath: TypedPath.ResolvablePath
 	) => Effect.Effect<never, PlatformError, void>;
 	/**
 	 * Change the permissions of a path.
 	 */
-	readonly chmod: (path: IoPath.ResolvablePath, mode: number) => Effect.Effect<never, PlatformError, void>;
+	readonly chmod: (path: TypedPath.ResolvablePath, mode: number) => Effect.Effect<never, PlatformError, void>;
 	/**
 	 * Change the owner and group of a path.
 	 */
 	readonly chown: (
-		path: IoPath.ResolvablePath,
+		path: TypedPath.ResolvablePath,
 		uid: number,
 		gid: number
 	) => Effect.Effect<never, PlatformError, void>;
 	/**
 	 * Check if a path exists.
 	 */
-	readonly exists: (path: IoPath.ResolvablePath) => Effect.Effect<never, PlatformError, boolean>;
+	readonly exists: (path: TypedPath.ResolvablePath) => Effect.Effect<never, PlatformError, boolean>;
 	/**
 	 * Create a hard link from `fromPath` to `toPath`.
 	 */
 	readonly link: (
-		fromPath: IoPath.ResolvableFilePath,
-		toPath: IoPath.ResolvableFilePath
+		fromPath: TypedPath.ResolvableFilePath,
+		toPath: TypedPath.ResolvableFilePath
 	) => Effect.Effect<never, PlatformError, void>;
 	/**
 	 * Create a directory at `path`. You can optionally specify the mode and
 	 * whether to recursively create nested directories.
 	 */
 	readonly makeDirectory: (
-		path: IoPath.ResolvableFolderPath,
+		path: TypedPath.ResolvableFolderPath,
 		options?: PlatformNodeFs.MakeDirectoryOptions
 	) => Effect.Effect<never, PlatformError, void>;
 	/**
@@ -212,17 +219,17 @@ export interface ServiceInterface {
 	 * The file handle will be automatically closed when the scope is closed.
 	 */
 	readonly open: (
-		path: IoPath.ResolvableFilePath,
+		path: TypedPath.ResolvableFilePath,
 		options?: PlatformNodeFs.OpenFileOptions
 	) => Effect.Effect<Scope.Scope, PlatformError, PlatformNodeFs.File>;
 	/**
 	 * Read the contents of a file.
 	 */
-	readonly readFile: (path: IoPath.ResolvableFilePath) => Effect.Effect<never, PlatformError, Uint8Array>;
+	readonly readFile: (path: TypedPath.ResolvableFilePath) => Effect.Effect<never, PlatformError, Uint8Array>;
 	/**
 	 * Read the destination of a symbolic link.
 	 */
-	readonly readLink: (path: IoPath.ResolvableSymbolicPath) => Effect.Effect<never, PlatformError, string>;
+	readonly readLink: (path: TypedPath.ResolvableSymbolicPath) => Effect.Effect<never, PlatformError, string>;
 	/**
 	 * Remove a file or directory.
 	 *
@@ -230,21 +237,21 @@ export interface ServiceInterface {
 	 * nested directories.
 	 */
 	readonly remove: (
-		path: IoPath.ResolvablePath,
+		path: TypedPath.ResolvablePath,
 		options?: PlatformNodeFs.RemoveOptions
 	) => Effect.Effect<never, PlatformError, void>;
 	/**
 	 * Rename a file or directory.
 	 */
-	readonly rename: <T extends IoPath.PathTargetType>(
-		oldPath: IoPath.GenericPath<IoPath.PathLinkType, IoPath.PathPositionType, T>,
-		newPath: IoPath.GenericPath<IoPath.PathLinkType, IoPath.PathPositionType, T>
+	readonly rename: <T extends TypedPath.PathTargetType>(
+		oldPath: TypedPath.TypedPath<TypedPath.PathLinkType, TypedPath.PathPositionType, T>,
+		newPath: TypedPath.TypedPath<TypedPath.PathLinkType, TypedPath.PathPositionType, T>
 	) => Effect.Effect<never, PlatformError, void>;
 	/**
 	 * Create a writable `Sink` for the specified `path`.
 	 */
 	readonly sink: (
-		path: IoPath.ResolvableFilePath,
+		path: TypedPath.ResolvableFilePath,
 		options?: PlatformNodeFs.SinkOptions
 	) => Sink.Sink<never, PlatformError, Uint8Array, never, void>;
 	/**
@@ -260,29 +267,29 @@ export interface ServiceInterface {
 	 * of bytes to read from the file.
 	 */
 	readonly stream: (
-		path: IoPath.ResolvableFilePath,
+		path: TypedPath.ResolvableFilePath,
 		options?: PlatformNodeFs.StreamOptions
 	) => Stream.Stream<never, PlatformError, Uint8Array>;
 	/**
 	 * Create a symbolic link from `fromPath` to `toPath`.
 	 */
-	readonly symlink: <T extends IoPath.PathTargetType>(
-		fromPath: IoPath.GenericPath<IoPath.PathLinkType, IoPath.PathPositionType, T>,
-		toPath: IoPath.GenericPath<IoPath.PathLinkType, IoPath.PathPositionType, T>
+	readonly symlink: <T extends TypedPath.PathTargetType>(
+		fromPath: TypedPath.TypedPath<TypedPath.PathLinkType, TypedPath.PathPositionType, T>,
+		toPath: TypedPath.TypedPath<TypedPath.PathLinkType, TypedPath.PathPositionType, T>
 	) => Effect.Effect<never, PlatformError, void>;
 	/**
 	 * Truncate a file to a specified length. If the `length` is not specified,
 	 * the file will be truncated to length `0`.
 	 */
 	readonly truncate: (
-		path: IoPath.ResolvableFilePath,
+		path: TypedPath.ResolvableFilePath,
 		length?: PlatformFs.SizeInput
 	) => Effect.Effect<never, PlatformError, void>;
 	/**
 	 * Change the file system timestamps of path.
 	 */
 	readonly utimes: (
-		path: IoPath.ResolvablePath,
+		path: TypedPath.ResolvablePath,
 		atime: Date | number,
 		mtime: Date | number
 	) => Effect.Effect<never, PlatformError, void>;
@@ -290,7 +297,7 @@ export interface ServiceInterface {
 	 * Write data to a file at `path`.
 	 */
 	readonly writeFile: (
-		path: IoPath.ResolvableFilePath,
+		path: TypedPath.ResolvableFilePath,
 		data: Uint8Array,
 		options?: PlatformNodeFs.WriteFileOptions
 	) => Effect.Effect<never, PlatformError, void>;
@@ -298,7 +305,7 @@ export interface ServiceInterface {
 	 * Write a string to a file at `path`.
 	 */
 	readonly writeFileString: (
-		path: IoPath.ResolvableFilePath,
+		path: TypedPath.ResolvableFilePath,
 		data: string,
 		options?: PlatformFs.WriteFileStringOptions
 	) => Effect.Effect<never, PlatformError, void>;
@@ -354,11 +361,11 @@ export const live = Layer.effect(
 								([files, folders]) =>
 									Tuple.make(
 										ReadonlyArray.map(files, ([name, stat]) =>
-											Tuple.make(ioPath.join(nextSeed, name as IoPath.FragmentFilePath), stat)
+											Tuple.make(ioPath.join(nextSeed, name as TypedPath.FilePathFragment), stat)
 										),
 										ReadonlyArray.filterMap(folders, ([name]) =>
 											pipe(
-												name as IoPath.FragmentFolderPath,
+												name as TypedPath.FolderPathFragment,
 												Option.liftPredicate((name) => !dirsExclude(name)),
 												Option.map((name) => ioPath.join(nextSeed, name))
 											)
@@ -378,7 +385,7 @@ export const live = Layer.effect(
 			path
 		}) =>
 			pipe(
-				Stream.iterate(path as IoPath.AbsoluteFolderPath, (currentPath) => ioPath.dirname(currentPath)),
+				Stream.iterate(path as TypedPath.AbsoluteFolderPath, (currentPath) => ioPath.dirname(currentPath)),
 				Stream.takeUntil((path) => Equal.equals(path, ioPath.homeDir) || Equal.equals(path, ioPath.rootDir)),
 				Stream.mapEffect((currentPath) =>
 					pipe(
