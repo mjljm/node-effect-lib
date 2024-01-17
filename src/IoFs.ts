@@ -10,6 +10,7 @@ import {
 	Effect,
 	Either,
 	Equal,
+	Function,
 	Layer,
 	Option,
 	Predicate,
@@ -26,6 +27,34 @@ import * as nodeFs from 'node:fs';
 
 const moduleTag = '@mjljm/node-effect-lib/IoFs/';
 const PlatformNodeFsService = PlatformNodeFs.FileSystem;
+
+export type PathWithStat<
+	L extends TypedPath.PathLinkType,
+	P extends TypedPath.PathPositionType,
+	T extends TypedPath.PathTargetType
+> = [path: TypedPath.TypedPath<L, P, T>, stat: PlatformNodeFs.File.Info];
+
+export const PathWithStatToFilePath =
+	<L extends TypedPath.PathLinkType, P extends TypedPath.PathPositionType>(
+		f: Predicate.Predicate<TypedPath.TypedPath<L, P, TypedPath.PathTargetType>> = () => true
+	) =>
+	([path, stat]: PathWithStat<L, P, TypedPath.PathTargetType>): Option.Option<TypedPath.TypedPath<L, P, 'file'>> =>
+		stat.type === 'File' && f(path) ? Option.some(path as TypedPath.TypedPath<L, P, 'file'>) : Option.none();
+
+export const PathWithStatToFolderPath =
+	<L extends TypedPath.PathLinkType, P extends TypedPath.PathPositionType>(
+		f: Predicate.Predicate<TypedPath.TypedPath<L, P, TypedPath.PathTargetType>> = () => true
+	) =>
+	([path, stat]: PathWithStat<L, P, TypedPath.PathTargetType>): Option.Option<
+		TypedPath.TypedPath<L, P, 'folder'>
+	> =>
+		stat.type === 'Directory' && f(path)
+			? Option.some(path as TypedPath.TypedPath<L, P, 'folder'>)
+			: Option.none();
+
+export const isFolderWithStat = <L extends TypedPath.PathLinkType, P extends TypedPath.PathPositionType>(
+	u: PathWithStat<L, P, TypedPath.PathTargetType>
+): u is PathWithStat<L, P, 'folder'> => u[1].type === 'Directory';
 
 export interface ServiceInterface {
 	/**
@@ -64,7 +93,7 @@ export interface ServiceInterface {
 	) => Effect.Effect<
 		never,
 		PlatformError,
-		ReadonlyArray<[fragment: TypedPath.PathFragment, stat: PlatformNodeFs.File.Info]>
+		ReadonlyArray<PathWithStat<TypedPath.PathLinkType, 'fragment', TypedPath.PathTargetType>>
 	>;
 
 	/**
@@ -77,7 +106,7 @@ export interface ServiceInterface {
 	}) => Effect.Effect<
 		never,
 		PlatformError | MError.General,
-		ReadonlyArray<[path: TypedPath.TypedPath<TypedPath.PathLinkType, P, 'file'>, stat: PlatformNodeFs.File.Info]>
+		ReadonlyArray<PathWithStat<TypedPath.PathLinkType, P, 'file'>>
 	>;
 
 	/**
@@ -95,7 +124,7 @@ export interface ServiceInterface {
 					'absolute',
 					'folder'
 				>,
-				contents: ReadonlyArray<[name: TypedPath.PathFragment, stat: PlatformNodeFs.File.Info]>
+				contents: ReadonlyArray<PathWithStat<TypedPath.PathLinkType, 'fragment', TypedPath.PathTargetType>>
 			],
 			R,
 			E
@@ -354,23 +383,26 @@ export const live = Layer.effect(
 										message: `Circularity detected from directory:'${path}' in function 'glob' of module '${moduleTag}'. Path '${nextSeed}' was met twice.`
 									})
 								);
-							const dirContentsWithInfo = yield* _(readDirectoryWithStats(nextSeed));
-							return pipe(
-								dirContentsWithInfo,
-								ReadonlyArray.partition(([_, stat]) => stat.type === 'Directory'),
-								([files, folders]) =>
-									Tuple.make(
-										ReadonlyArray.map(files, ([name, stat]) =>
-											Tuple.make(ioPath.join(nextSeed, name as TypedPath.FilePathFragment), stat)
-										),
-										ReadonlyArray.filterMap(folders, ([name]) =>
-											pipe(
-												name as TypedPath.FolderPathFragment,
-												Option.liftPredicate((name) => !dirsExclude(name)),
-												Option.map((name) => ioPath.join(nextSeed, name))
-											)
+							const dirContentsWithStat = yield* _(readDirectoryWithStats(nextSeed));
+							return pipe(dirContentsWithStat, ReadonlyArray.partition(isFolderWithStat), ([files, folders]) =>
+								Tuple.make(
+									ReadonlyArray.map(files, ([name, stat]) =>
+										Tuple.make(
+											ioPath.join(
+												nextSeed,
+												Function.unsafeCoerce<TypedPath.PathFragment, TypedPath.FilePathFragment>(name)
+											),
+											stat
+										)
+									),
+									ReadonlyArray.filterMap(folders, ([name]) =>
+										pipe(
+											name,
+											Option.liftPredicate((name) => !dirsExclude(name)),
+											Option.map((name) => ioPath.join(nextSeed, name))
 										)
 									)
+								)
 							);
 						}),
 					memoize: false,
