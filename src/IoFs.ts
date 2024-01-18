@@ -10,7 +10,6 @@ import {
 	Effect,
 	Either,
 	Equal,
-	Function,
 	Layer,
 	Option,
 	Predicate,
@@ -34,6 +33,20 @@ export type PathWithStat<
 	T extends TypedPath.PathTargetType
 > = [path: TypedPath.TypedPath<L, P, T>, stat: PlatformNodeFs.File.Info];
 
+/**
+ * Utility types
+ */
+export type Develop<PWS> =
+	PWS extends PathWithStat<infer L, infer P, infer T>
+		? T extends unknown
+			? PathWithStat<L, P, T>
+			: never
+		: never;
+
+/**
+ *
+ * PathWithStat is a structure that associates a path to its stat
+ */
 export const PathWithStatToFilePath =
 	<L extends TypedPath.PathLinkType, P extends TypedPath.PathPositionType>(
 		f: Predicate.Predicate<TypedPath.TypedPath<L, P, TypedPath.PathTargetType>> = () => true
@@ -41,6 +54,9 @@ export const PathWithStatToFilePath =
 	([path, stat]: PathWithStat<L, P, TypedPath.PathTargetType>): Option.Option<TypedPath.TypedPath<L, P, 'file'>> =>
 		stat.type === 'File' && f(path) ? Option.some(path as TypedPath.TypedPath<L, P, 'file'>) : Option.none();
 
+/**
+ * Conversions
+ */
 export const PathWithStatToFolderPath =
 	<L extends TypedPath.PathLinkType, P extends TypedPath.PathPositionType>(
 		f: Predicate.Predicate<TypedPath.TypedPath<L, P, TypedPath.PathTargetType>> = () => true
@@ -52,8 +68,11 @@ export const PathWithStatToFolderPath =
 			? Option.some(path as TypedPath.TypedPath<L, P, 'folder'>)
 			: Option.none();
 
+/**
+ * Typeguard
+ */
 export const isFolderWithStat = <L extends TypedPath.PathLinkType, P extends TypedPath.PathPositionType>(
-	u: PathWithStat<L, P, TypedPath.PathTargetType>
+	u: Develop<PathWithStat<L, P, TypedPath.PathTargetType>>
 ): u is PathWithStat<L, P, 'folder'> => u[1].type === 'Directory';
 
 export interface ServiceInterface {
@@ -93,7 +112,7 @@ export interface ServiceInterface {
 	) => Effect.Effect<
 		never,
 		PlatformError,
-		ReadonlyArray<PathWithStat<TypedPath.PathLinkType, 'fragment', TypedPath.PathTargetType>>
+		ReadonlyArray<Develop<PathWithStat<TypedPath.PathLinkType, 'fragment', TypedPath.PathTargetType>>>
 	>;
 
 	/**
@@ -124,7 +143,9 @@ export interface ServiceInterface {
 					'absolute',
 					'folder'
 				>,
-				contents: ReadonlyArray<PathWithStat<TypedPath.PathLinkType, 'fragment', TypedPath.PathTargetType>>
+				contents: ReadonlyArray<
+					Develop<PathWithStat<TypedPath.PathLinkType, 'fragment', TypedPath.PathTargetType>>
+				>
 			],
 			R,
 			E
@@ -386,15 +407,7 @@ export const live = Layer.effect(
 							const dirContentsWithStat = yield* _(readDirectoryWithStats(nextSeed));
 							return pipe(dirContentsWithStat, ReadonlyArray.partition(isFolderWithStat), ([files, folders]) =>
 								Tuple.make(
-									ReadonlyArray.map(files, ([name, stat]) =>
-										Tuple.make(
-											ioPath.join(
-												nextSeed,
-												Function.unsafeCoerce<TypedPath.PathFragment, TypedPath.FilePathFragment>(name)
-											),
-											stat
-										)
-									),
+									ReadonlyArray.map(files, ([name, stat]) => Tuple.make(ioPath.join(nextSeed, name), stat)),
 									ReadonlyArray.filterMap(folders, ([name]) =>
 										pipe(
 											name,

@@ -145,7 +145,7 @@ export interface ServiceInterface {
 	>;
 
 	/**
-	 * Returns all the segments of a path but the last.
+	 * Returns all the segments of a path but the last. No trailing slash.
 	 */
 	readonly dirname: <L extends TypedPath.PathLinkType, P extends TypedPath.PathPositionType>(
 		p: TypedPath.TypedPath<L, P, TypedPath.PathTargetType>
