@@ -12,6 +12,11 @@ const moduleTag = '@mjljm/node-effect-lib/IoPath/';
 const PlatformNodePathService = PlatformNodePath.Path;
 const PlatformNodeFsService = PlatformNodeFs.FileSystem;
 
+const PlatformNodeFsLive = PlatformNodeFs.layer;
+// layerWin32 implements functions that behave similarly on Windows and Linux
+// See Node js path doc for more information
+const PlatformNodePathLive = PlatformNodePath.layerWin32;
+
 export interface ServiceInterface {
 	/** Current working directory */
 	readonly currentDirectory: TypedPath.AbsoluteFolderPath;
@@ -168,7 +173,7 @@ export interface ServiceInterface {
 
 export const Service = Context.Tag<ServiceInterface>(Symbol.for(moduleTag + 'Service'));
 
-export const live = Layer.effect(
+export const layer = Layer.effect(
 	Service,
 	Effect.gen(function* (_) {
 		const path = yield* _(PlatformNodePathService);
@@ -226,3 +231,5 @@ export const live = Layer.effect(
 		};
 	})
 );
+
+export const live = pipe(layer, Layer.provide(PlatformNodeFsLive), Layer.provide(PlatformNodePathLive));

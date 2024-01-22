@@ -1,4 +1,4 @@
-import { IoPath } from '#mjljm/node-effect-lib/index';
+import * as IoPath from '#mjljm/node-effect-lib/IoPath';
 import * as PlatformNodeFs from '@effect/platform-node/FileSystem';
 import { PlatformError } from '@effect/platform/Error';
 import * as PlatformFs from '@effect/platform/FileSystem';
@@ -25,7 +25,9 @@ import { Concurrency } from 'effect/Types';
 import * as nodeFs from 'node:fs';
 
 const moduleTag = '@mjljm/node-effect-lib/IoFs/';
+
 const PlatformNodeFsService = PlatformNodeFs.FileSystem;
+const PlatformNodeFsLive = PlatformNodeFs.layer;
 
 export type PathWithStat<
 	L extends TypedPath.PathLinkType,
@@ -33,15 +35,18 @@ export type PathWithStat<
 	T extends TypedPath.PathTargetType
 > = [path: TypedPath.TypedPath<L, P, T>, stat: PlatformNodeFs.File.Info];
 
+export type FilePathFragmentWithStat = PathWithStat<TypedPath.PathLinkType, 'fragment', 'file'>;
+export type FolderPathFragmentWithStat = PathWithStat<TypedPath.PathLinkType, 'fragment', 'folder'>;
+export type PathFragmentWithStat = FilePathFragmentWithStat | FolderPathFragmentWithStat;
 /**
  * Utility types
  */
-export type Develop<PWS> =
+/*export type Develop<PWS> =
 	PWS extends PathWithStat<infer L, infer P, infer T>
 		? T extends unknown
 			? PathWithStat<L, P, T>
 			: never
-		: never;
+		: never;*/
 
 /**
  *
@@ -72,7 +77,7 @@ export const PathWithStatToFolderPath =
  * Typeguard
  */
 export const isFolderWithStat = <L extends TypedPath.PathLinkType, P extends TypedPath.PathPositionType>(
-	u: Develop<PathWithStat<L, P, TypedPath.PathTargetType>>
+	u: PathWithStat<L, P, TypedPath.PathTargetType>
 ): u is PathWithStat<L, P, 'folder'> => u[1].type === 'Directory';
 
 export interface ServiceInterface {
@@ -112,7 +117,7 @@ export interface ServiceInterface {
 	) => Effect.Effect<
 		never,
 		PlatformError,
-		ReadonlyArray<Develop<PathWithStat<TypedPath.PathLinkType, 'fragment', TypedPath.PathTargetType>>>
+		ReadonlyArray<PathWithStat<TypedPath.PathLinkType, 'fragment', TypedPath.PathTargetType>>
 	>;
 
 	/**
@@ -143,9 +148,7 @@ export interface ServiceInterface {
 					'absolute',
 					'folder'
 				>,
-				contents: ReadonlyArray<
-					Develop<PathWithStat<TypedPath.PathLinkType, 'fragment', TypedPath.PathTargetType>>
-				>
+				contents: ReadonlyArray<PathWithStat<TypedPath.PathLinkType, 'fragment', TypedPath.PathTargetType>>
 			],
 			R,
 			E
@@ -363,7 +366,7 @@ export interface ServiceInterface {
 
 export const Service = Context.Tag<ServiceInterface>(Symbol.for(moduleTag + 'Service'));
 
-export const live = Layer.effect(
+export const layer = Layer.effect(
 	Service,
 	Effect.gen(function* (_) {
 		const fs = yield* _(PlatformNodeFsService);
@@ -407,7 +410,9 @@ export const live = Layer.effect(
 							const dirContentsWithStat = yield* _(readDirectoryWithStats(nextSeed));
 							return pipe(dirContentsWithStat, ReadonlyArray.partition(isFolderWithStat), ([files, folders]) =>
 								Tuple.make(
-									ReadonlyArray.map(files, ([name, stat]) => Tuple.make(ioPath.join(nextSeed, name), stat)),
+									ReadonlyArray.map(files, ([name, stat]) =>
+										Tuple.make(ioPath.join(nextSeed, name as TypedPath.FilePathFragment), stat)
+									),
 									ReadonlyArray.filterMap(folders, ([name]) =>
 										pipe(
 											name,
@@ -503,3 +508,5 @@ export const live = Layer.effect(
 		};
 	})
 );
+
+export const live = pipe(layer, Layer.provide(PlatformNodeFsLive), Layer.provide(IoPath.live));

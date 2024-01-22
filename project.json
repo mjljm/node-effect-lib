@@ -11,8 +11,8 @@
 		["@mjljm/effect-lib", "workspace:*"]
 	],
 	"peerDeps": [
-		["@effect/platform", "0.42.1"],
-		["@effect/platform-node", "0.41.2"],
-		["effect", "2.0.5"]
+		["@effect/platform", "0.42.6"],
+		["@effect/platform-node", "0.41.7"],
+		["effect", "2.1.2"]
 	]
 }
