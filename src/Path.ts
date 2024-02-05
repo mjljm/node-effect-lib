@@ -6,8 +6,9 @@ import { TypedPath } from '@mjljm/js-lib';
 import { Context, Effect, Layer, Predicate, pipe } from 'effect';
 import { NoSuchElementException } from 'effect/Cause';
 import { homedir } from 'node:os';
+import { PathLinkType, PathTargetType } from '../../js-lib/src/TypedPath';
 
-const moduleTag = '@mjljm/node-effect-lib/IoPath/';
+const moduleTag = '@mjljm/node-effect-lib/NPath/';
 
 const PlatformNodePathService = PlatformNodePath.Path;
 const PlatformNodeFsService = PlatformNodeFs.FileSystem;
@@ -34,6 +35,45 @@ export interface ServiceInterface {
 	/**
 	 * Safe constructors
 	 */
+	readonly ResolvablePath: (
+		p: string
+	) => Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.ResolvablePath>;
+	readonly ResolvableFilePath: {
+		<L extends TypedPath.PathLinkType, P extends Exclude<TypedPath.PathPositionType, 'fragment'>>(
+			p: TypedPath.TypedPath<L, P, PathTargetType>
+		): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.TypedPath<L, P, 'file'>>;
+		(p: string): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.ResolvableFilePath>;
+	};
+	readonly ResolvableFolderPath: {
+		<L extends TypedPath.PathLinkType, P extends Exclude<TypedPath.PathPositionType, 'fragment'>>(
+			p: TypedPath.TypedPath<L, P, PathTargetType>
+		): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.TypedPath<L, P, 'folder'>>;
+		(p: string): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.ResolvableFolderPath>;
+	};
+	readonly AbsolutePath: {
+		<L extends TypedPath.PathLinkType, T extends TypedPath.PathTargetType>(
+			p: TypedPath.TypedPath<L, TypedPath.PathPositionType, T>
+		): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.TypedPath<L, 'absolute', T>>;
+		(p: string): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.AbsolutePath>;
+	};
+	readonly RelativePath: {
+		<L extends TypedPath.PathLinkType, T extends TypedPath.PathTargetType>(
+			p: TypedPath.TypedPath<L, TypedPath.PathPositionType, T>
+		): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.TypedPath<L, 'relative', T>>;
+		(p: string): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.RelativePath>;
+	};
+	readonly ResolvableSymbolicPath: {
+		<P extends Exclude<TypedPath.PathPositionType, 'fragment'>, T extends TypedPath.PathTargetType>(
+			p: TypedPath.TypedPath<PathLinkType, P, T>
+		): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.TypedPath<'symbolic', P, T>>;
+		(p: string): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.ResolvableSymbolicPath>;
+	};
+	readonly ResolvableRealPath: {
+		<P extends Exclude<TypedPath.PathPositionType, 'fragment'>, T extends TypedPath.PathTargetType>(
+			p: TypedPath.TypedPath<PathLinkType, P, T>
+		): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.TypedPath<'real', P, T>>;
+		(p: string): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.ResolvableRealPath>;
+	};
 	readonly AbsoluteFilePath: (
 		p: string
 	) => Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.AbsoluteFilePath>;
@@ -46,14 +86,6 @@ export interface ServiceInterface {
 	readonly RelativeFolderPath: (
 		p: string
 	) => Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.RelativeFolderPath>;
-	// To finish when Tim Smart has corrected fs.stat
-	/*readonly RealAbsoluteFilePath: (
-		p: string
-	) => Effect.Effect<never, PlatformError | NoSuchElementException, RealAbsoluteFilePath>;
-	readonly TypedPath.RealAbsoluteFolderPath: (
-		p: string
-	) => Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.RealAbsoluteFolderPath>;*/
-
 	/**
 	 * Join all arguments together and normalize the resulting path. Joining negative fragments to a real path always yields a real path. Joining positive fragments to a symbolic path always yields a symbolic path. We usually don't know if a fragment is real or symbolic. So we simplify the function type by returning a path whose link type is unknown.
 	 */
@@ -110,6 +142,7 @@ export interface ServiceInterface {
 		): TypedPath.TypedPath<TypedPath.PathLinkType, 'absolute', TN>;
 	};
 
+	// Conversions
 	/**
 	 * The underlying path is converted to an absolute path based on the current directory.
 	 */
@@ -186,37 +219,122 @@ export const layer = Layer.effect(
 		const homeDir = TypedPath.unsafeRealAbsoluteFolderPath(homeDirStr);
 		const rootDir = TypedPath.unsafeRealAbsoluteFolderPath(path.parse(homeDirStr).root);
 
-		const checkPath =
-			(
-				linkStatFunction: (p: string) => Effect.Effect<never, PlatformError, PlatformNodeFs.File.Info>,
-				positionFilter: (p: string) => boolean,
-				target: 'File' | 'Directory'
-			) =>
-			(p: string): Effect.Effect<never, PlatformError | NoSuchElementException, string> =>
-				pipe(
-					p,
-					Effect.succeed,
-					Effect.filterOrFail(positionFilter, () => new NoSuchElementException()),
-					MEffect.filterEffectOrFail(fs.exists, () => new NoSuchElementException()),
-					MEffect.filterEffectOrFail(
-						(p) =>
-							pipe(
-								p,
-								linkStatFunction,
-								Effect.map((info) => info.type === target)
-							),
-						() => new NoSuchElementException()
-					)
-				);
+		const ResolvablePath: ServiceInterface['ResolvablePath'] = (p) =>
+			pipe(
+				p as TypedPath.ResolvablePath,
+				Effect.succeed,
+				MEffect.filterEffectOrFail(fs.exists, () => new NoSuchElementException())
+			);
+
+		const ResolvableFilePath: ServiceInterface['ResolvableFilePath'] = (p: string) =>
+			pipe(
+				p as TypedPath.ResolvableFilePath,
+				Effect.succeed,
+				MEffect.filterEffectOrFail(
+					(p) =>
+						pipe(
+							p,
+							fs.stat,
+							Effect.map((info) => info.type === 'File')
+						),
+					() => new NoSuchElementException()
+				)
+			);
+
+		const ResolvableFolderPath: ServiceInterface['ResolvableFolderPath'] = (p: string) =>
+			pipe(
+				p as TypedPath.ResolvableFolderPath,
+				Effect.succeed,
+				MEffect.filterEffectOrFail(
+					(p) =>
+						pipe(
+							p,
+							fs.stat,
+							Effect.map((info) => info.type === 'Directory')
+						),
+					() => new NoSuchElementException()
+				)
+			);
+
+		const AbsolutePath: ServiceInterface['AbsolutePath'] = (p: string) =>
+			pipe(
+				p,
+				ResolvablePath,
+				Effect.filterOrFail(path.isAbsolute, () => new NoSuchElementException())
+			) as never;
+
+		const RelativePath: ServiceInterface['RelativePath'] = (p: string) =>
+			pipe(
+				p,
+				ResolvablePath,
+				Effect.filterOrFail(Predicate.not(path.isAbsolute), () => new NoSuchElementException())
+			) as never;
+
+		const ResolvableSymbolicPath: ServiceInterface['ResolvableSymbolicPath'] = (p: string) =>
+			pipe(
+				p as TypedPath.ResolvableSymbolicPath,
+				Effect.succeed,
+				MEffect.filterEffectOrFail(
+					(p) =>
+						pipe(
+							p,
+							fs.stat,
+							Effect.map((info) => info.type === 'SymbolicLink')
+						),
+					() => new NoSuchElementException()
+				)
+			);
+
+		const ResolvableRealPath: ServiceInterface['ResolvableRealPath'] = (p: string) =>
+			pipe(
+				p as TypedPath.ResolvableRealPath,
+				Effect.succeed,
+				MEffect.filterEffectOrFail(
+					(p) =>
+						pipe(
+							p,
+							fs.stat,
+							Effect.map((info) => info.type !== 'SymbolicLink')
+						),
+					() => new NoSuchElementException()
+				)
+			);
 
 		return {
 			currentDirectory,
 			homeDir,
 			rootDir,
-			AbsoluteFilePath: checkPath(fs.stat, path.isAbsolute, 'File') as never,
-			AbsoluteFolderPath: checkPath(fs.stat, path.isAbsolute, 'Directory') as never,
-			RelativeFilePath: checkPath(fs.stat, Predicate.not(path.isAbsolute), 'File') as never,
-			RelativeFolderPath: checkPath(fs.stat, Predicate.not(path.isAbsolute), 'Directory') as never,
+			ResolvablePath: ResolvablePath,
+			ResolvableFilePath,
+			ResolvableFolderPath,
+			AbsolutePath,
+			RelativePath,
+			ResolvableSymbolicPath,
+			ResolvableRealPath,
+			AbsoluteFilePath: (p) =>
+				pipe(
+					p,
+					AbsolutePath,
+					Effect.flatMap((z) => ResolvableFilePath(z))
+				),
+			AbsoluteFolderPath: (p) =>
+				pipe(
+					p,
+					AbsolutePath,
+					Effect.flatMap((z) => ResolvableFolderPath(z))
+				),
+			RelativeFilePath: (p) =>
+				pipe(
+					p,
+					RelativePath,
+					Effect.flatMap((z) => ResolvableFilePath(z))
+				),
+			RelativeFolderPath: (p) =>
+				pipe(
+					p,
+					RelativePath,
+					Effect.flatMap((z) => ResolvableFolderPath(z))
+				),
 			join: (...segments: ReadonlyArray<TypedPath.Path>) => path.join(...segments) as never,
 			resolve: (...segments: ReadonlyArray<TypedPath.Path>) => path.resolve(...segments) as never,
 			toAbsolutePath: (p) => path.resolve(p) as never,

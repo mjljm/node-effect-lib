@@ -1,12 +1,13 @@
-import * as IoPath from '#mjljm/node-effect-lib/IoPath';
+import * as NPath from '#mjljm/node-effect-lib/Path';
 import * as PlatformNodeFs from '@effect/platform-node/FileSystem';
 import { PlatformError } from '@effect/platform/Error';
 import * as PlatformFs from '@effect/platform/FileSystem';
-import { MEffect, MError, Tree } from '@mjljm/effect-lib';
+import { MEffect, MError, MTree } from '@mjljm/effect-lib';
 import { TypedPath } from '@mjljm/js-lib';
 import {
 	Cause,
 	Context,
+	Data,
 	Effect,
 	Either,
 	Equal,
@@ -24,11 +25,22 @@ import {
 import { Concurrency } from 'effect/Types';
 import * as nodeFs from 'node:fs';
 
-const moduleTag = '@mjljm/node-effect-lib/IoFs/';
+const moduleTag = '@mjljm/node-effect-lib/NFs/';
 
 const PlatformNodeFsService = PlatformNodeFs.FileSystem;
 const PlatformNodeFsLive = PlatformNodeFs.layer;
 
+/**
+ * Errors
+ */
+
+export class DirStructureError extends Data.TaggedError('DirStructureError')<{
+	readonly message: string;
+}> {}
+
+/**
+ * PathWithStat
+ */
 export type PathWithStat<
 	L extends TypedPath.PathLinkType,
 	P extends TypedPath.PathPositionType,
@@ -129,7 +141,7 @@ export interface ServiceInterface {
 		readonly concurrencyOptions?: { readonly concurrency?: Concurrency };
 	}) => Effect.Effect<
 		never,
-		PlatformError | MError.General,
+		PlatformError | DirStructureError,
 		ReadonlyArray<PathWithStat<TypedPath.PathLinkType, P, 'file'>>
 	>;
 
@@ -370,10 +382,9 @@ export const layer = Layer.effect(
 	Service,
 	Effect.gen(function* (_) {
 		const fs = yield* _(PlatformNodeFsService);
-		const ioPath = yield* _(IoPath.Service);
+		const nPath = yield* _(NPath.Service);
 
-		const stat: ServiceInterface['stat'] = (path) =>
-			pipe(path, ioPath.toRealAbsolutePath, Effect.flatMap(fs.stat));
+		const stat: ServiceInterface['stat'] = (path) => pipe(path, nPath.toRealAbsolutePath, Effect.flatMap(fs.stat));
 
 		const lstat: ServiceInterface['lstat'] = fs.stat;
 
@@ -387,7 +398,7 @@ export const layer = Layer.effect(
 					fragments,
 					ReadonlyArray.map((fragment) =>
 						pipe(
-							stat(ioPath.resolve(path, fragment)),
+							stat(nPath.resolve(path, fragment)),
 							Effect.map((info) => Tuple.make(fragment, info))
 						)
 					),
@@ -403,7 +414,7 @@ export const layer = Layer.effect(
 						Effect.gen(function* (_) {
 							if (isCircular)
 								yield* _(
-									new MError.General({
+									new DirStructureError({
 										message: `Circularity detected from directory:'${path}' in function 'glob' of module '${moduleTag}'. Path '${nextSeed}' was met twice.`
 									})
 								);
@@ -411,13 +422,13 @@ export const layer = Layer.effect(
 							return pipe(dirContentsWithStat, ReadonlyArray.partition(isFolderWithStat), ([files, folders]) =>
 								Tuple.make(
 									ReadonlyArray.map(files, ([name, stat]) =>
-										Tuple.make(ioPath.join(nextSeed, name as TypedPath.FilePathFragment), stat)
+										Tuple.make(nPath.join(nextSeed, name as TypedPath.FilePathFragment), stat)
 									),
 									ReadonlyArray.filterMap(folders, ([name]) =>
 										pipe(
 											name,
 											Option.liftPredicate((name) => !dirsExclude(name)),
-											Option.map((name) => ioPath.join(nextSeed, name))
+											Option.map((name) => nPath.join(nextSeed, name))
 										)
 									)
 								)
@@ -426,7 +437,7 @@ export const layer = Layer.effect(
 					memoize: false,
 					concurrencyOptions
 				}),
-				Effect.map(Tree.reduce(ReadonlyArray.empty(), (acc, a) => ReadonlyArray.appendAll(acc, a)))
+				Effect.map(MTree.reduce(ReadonlyArray.empty(), (acc, a) => ReadonlyArray.appendAll(acc, a)))
 			);
 
 		const readDirectoriesUpwardWhile: ServiceInterface['readDirectoriesUpwardWhile'] = ({
@@ -435,8 +446,8 @@ export const layer = Layer.effect(
 			path
 		}) =>
 			pipe(
-				Stream.iterate(path as TypedPath.AbsoluteFolderPath, (currentPath) => ioPath.dirname(currentPath)),
-				Stream.takeUntil((path) => Equal.equals(path, ioPath.homeDir) || Equal.equals(path, ioPath.rootDir)),
+				Stream.iterate(path as TypedPath.AbsoluteFolderPath, (currentPath) => nPath.dirname(currentPath)),
+				Stream.takeUntil((path) => Equal.equals(path, nPath.homeDir) || Equal.equals(path, nPath.rootDir)),
 				Stream.mapEffect((currentPath) =>
 					pipe(
 						readDirectoryWithStats(currentPath, concurrencyOptions),
@@ -509,4 +520,4 @@ export const layer = Layer.effect(
 	})
 );
 
-export const live = pipe(layer, Layer.provide(PlatformNodeFsLive), Layer.provide(IoPath.live));
+export const live = pipe(layer, Layer.provide(PlatformNodeFsLive), Layer.provide(NPath.live));

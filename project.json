@@ -8,11 +8,10 @@
 	"deps": [
 		["@mjljm/js-lib", "workspace:*"],
 		["@mjljm/node-lib", "workspace:*"],
-		["@mjljm/effect-lib", "workspace:*"]
-	],
-	"peerDeps": [
+		["@mjljm/effect-lib", "workspace:*"],
 		["@effect/platform", "0.42.6"],
 		["@effect/platform-node", "0.41.7"],
-		["effect", "2.1.2"]
+		["effect", "2.1.2"],
+		["@effect/schema", "0.61.4"]
 	]
 }
