@@ -55,9 +55,9 @@
 		"@types/eslint": "^8.56.2",
 		"@types/eslint-config-prettier": "^6.11.3",
 		"@types/eslint__js": "^8.42.3",
-		"@types/node": "^20.11.10",
-		"@typescript-eslint/eslint-plugin": "^6.20.0",
-		"@typescript-eslint/parser": "^6.20.0",
+		"@types/node": "^20.11.16",
+		"@typescript-eslint/eslint-plugin": "^6.21.0",
+		"@typescript-eslint/parser": "^6.21.0",
 		"cross-env": "^7.0.3",
 		"eslint": "^8.56.0",
 		"eslint-config-prettier": "^9.1.0",
@@ -68,10 +68,10 @@
 		"eslint-plugin-markdown": "^3.0.1",
 		"eslint-plugin-sort-destructure-keys": "^1.5.0",
 		"eslint-plugin-yml": "^1.12.2",
-		"fast-check": "^3.15.0",
+		"fast-check": "^3.15.1",
 		"madge": "^6.1.0",
 		"npm-check-updates": "^16.14.14",
-		"prettier": "^3.2.4",
+		"prettier": "^3.2.5",
 		"rimraf": "^5.0.5",
 		"terser": "^5.27.0",
 		"typescript": "^5.3.3",
@@ -80,12 +80,12 @@
 		"vitest": "^1.2.2"
 	},
 	"dependencies": {
-		"@effect/platform": "0.43.4",
-		"@effect/platform-node": "0.42.4",
+		"@effect/platform": "0.43.9",
+		"@effect/platform-node": "0.42.9",
+		"@effect/schema": "0.61.5",
 		"@mjljm/effect-lib": "workspace:*",
 		"@mjljm/js-lib": "workspace:*",
 		"@mjljm/node-lib": "workspace:*",
-		"effect": "2.2.3",
-		"@effect/schema": "0.61.4"
+		"effect": "2.2.3"
 	}
 }
