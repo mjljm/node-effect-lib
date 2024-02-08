@@ -1,7 +1,6 @@
 import * as PlatformNodeFs from '@effect/platform-node/FileSystem';
 import * as PlatformNodePath from '@effect/platform-node/Path';
 import { BadArgument, PlatformError } from '@effect/platform/Error';
-import { MEffect } from '@mjljm/effect-lib';
 import { TypedPath } from '@mjljm/js-lib';
 import { Context, Effect, Layer, Predicate, pipe } from 'effect';
 import { NoSuchElementException } from 'effect/Cause';
@@ -221,39 +220,34 @@ export const layer = Layer.effect(
 
 		const ResolvablePath: ServiceInterface['ResolvablePath'] = (p) =>
 			pipe(
-				p as TypedPath.ResolvablePath,
-				Effect.succeed,
-				MEffect.filterEffectOrFail(fs.exists, () => new NoSuchElementException())
+				p,
+				fs.exists,
+				Effect.if({
+					onFalse: new NoSuchElementException(),
+					onTrue: Effect.succeed(p as TypedPath.ResolvablePath)
+				})
 			);
 
 		const ResolvableFilePath: ServiceInterface['ResolvableFilePath'] = (p: string) =>
 			pipe(
-				p as TypedPath.ResolvableFilePath,
-				Effect.succeed,
-				MEffect.filterEffectOrFail(
-					(p) =>
-						pipe(
-							p,
-							fs.stat,
-							Effect.map((info) => info.type === 'File')
-						),
-					() => new NoSuchElementException()
-				)
+				p,
+				fs.stat,
+				Effect.map((info) => info.type === 'File'),
+				Effect.if({
+					onFalse: new NoSuchElementException(),
+					onTrue: Effect.succeed(p as TypedPath.ResolvableFilePath)
+				})
 			);
 
 		const ResolvableFolderPath: ServiceInterface['ResolvableFolderPath'] = (p: string) =>
 			pipe(
-				p as TypedPath.ResolvableFolderPath,
-				Effect.succeed,
-				MEffect.filterEffectOrFail(
-					(p) =>
-						pipe(
-							p,
-							fs.stat,
-							Effect.map((info) => info.type === 'Directory')
-						),
-					() => new NoSuchElementException()
-				)
+				p,
+				fs.stat,
+				Effect.map((info) => info.type === 'Directory'),
+				Effect.if({
+					onFalse: new NoSuchElementException(),
+					onTrue: Effect.succeed(p as TypedPath.ResolvableFolderPath)
+				})
 			);
 
 		const AbsolutePath: ServiceInterface['AbsolutePath'] = (p: string) =>
@@ -272,32 +266,24 @@ export const layer = Layer.effect(
 
 		const ResolvableSymbolicPath: ServiceInterface['ResolvableSymbolicPath'] = (p: string) =>
 			pipe(
-				p as TypedPath.ResolvableSymbolicPath,
-				Effect.succeed,
-				MEffect.filterEffectOrFail(
-					(p) =>
-						pipe(
-							p,
-							fs.stat,
-							Effect.map((info) => info.type === 'SymbolicLink')
-						),
-					() => new NoSuchElementException()
-				)
+				p,
+				fs.stat,
+				Effect.map((info) => info.type === 'SymbolicLink'),
+				Effect.if({
+					onFalse: new NoSuchElementException(),
+					onTrue: Effect.succeed(p as TypedPath.ResolvableSymbolicPath)
+				})
 			);
 
 		const ResolvableRealPath: ServiceInterface['ResolvableRealPath'] = (p: string) =>
 			pipe(
 				p as TypedPath.ResolvableRealPath,
-				Effect.succeed,
-				MEffect.filterEffectOrFail(
-					(p) =>
-						pipe(
-							p,
-							fs.stat,
-							Effect.map((info) => info.type !== 'SymbolicLink')
-						),
-					() => new NoSuchElementException()
-				)
+				fs.stat,
+				Effect.map((info) => info.type !== 'SymbolicLink'),
+				Effect.if({
+					onFalse: new NoSuchElementException(),
+					onTrue: Effect.succeed(p as TypedPath.ResolvableRealPath)
+				})
 			);
 
 		return {
