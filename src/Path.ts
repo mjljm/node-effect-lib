@@ -5,7 +5,6 @@ import { TypedPath } from '@mjljm/js-lib';
 import { Context, Effect, Layer, Predicate, pipe } from 'effect';
 import { NoSuchElementException } from 'effect/Cause';
 import { homedir } from 'node:os';
-import { PathLinkType, PathTargetType } from '../../js-lib/src/TypedPath';
 
 const moduleTag = '@mjljm/node-effect-lib/NPath/';
 
@@ -39,13 +38,13 @@ export interface ServiceInterface {
 	) => Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.ResolvablePath>;
 	readonly ResolvableFilePath: {
 		<L extends TypedPath.PathLinkType, P extends Exclude<TypedPath.PathPositionType, 'fragment'>>(
-			p: TypedPath.TypedPath<L, P, PathTargetType>
+			p: TypedPath.TypedPath<L, P, TypedPath.PathTargetType>
 		): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.TypedPath<L, P, 'file'>>;
 		(p: string): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.ResolvableFilePath>;
 	};
 	readonly ResolvableFolderPath: {
 		<L extends TypedPath.PathLinkType, P extends Exclude<TypedPath.PathPositionType, 'fragment'>>(
-			p: TypedPath.TypedPath<L, P, PathTargetType>
+			p: TypedPath.TypedPath<L, P, TypedPath.PathTargetType>
 		): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.TypedPath<L, P, 'folder'>>;
 		(p: string): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.ResolvableFolderPath>;
 	};
@@ -63,13 +62,13 @@ export interface ServiceInterface {
 	};
 	readonly ResolvableSymbolicPath: {
 		<P extends Exclude<TypedPath.PathPositionType, 'fragment'>, T extends TypedPath.PathTargetType>(
-			p: TypedPath.TypedPath<PathLinkType, P, T>
+			p: TypedPath.TypedPath<TypedPath.PathLinkType, P, T>
 		): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.TypedPath<'symbolic', P, T>>;
 		(p: string): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.ResolvableSymbolicPath>;
 	};
 	readonly ResolvableRealPath: {
 		<P extends Exclude<TypedPath.PathPositionType, 'fragment'>, T extends TypedPath.PathTargetType>(
-			p: TypedPath.TypedPath<PathLinkType, P, T>
+			p: TypedPath.TypedPath<TypedPath.PathLinkType, P, T>
 		): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.TypedPath<'real', P, T>>;
 		(p: string): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.ResolvableRealPath>;
 	};
