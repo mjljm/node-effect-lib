@@ -2,7 +2,7 @@ import * as NPath from '#mjljm/node-effect-lib/Path';
 import * as PlatformNodeFs from '@effect/platform-node/FileSystem';
 import { PlatformError } from '@effect/platform/Error';
 import * as PlatformFs from '@effect/platform/FileSystem';
-import { MEffect, MError, MTree } from '@mjljm/effect-lib';
+import { MEffect, MErrors, MTree } from '@mjljm/effect-lib';
 import { TypedPath } from '@mjljm/js-lib';
 import {
 	Cause,
@@ -181,7 +181,7 @@ export interface ServiceInterface {
 	readonly watch: (
 		path: TypedPath.ResolvablePath,
 		options?: { readonly recursive?: boolean; readonly encoding?: BufferEncoding }
-	) => Stream.Stream<never, MError.FunctionPort, [eventType: string, filename: string]>;
+	) => Stream.Stream<never, MErrors.FunctionPort, [eventType: string, filename: string]>;
 
 	/**
 	 * Checks if a path can be accessed. You can optionally specify the level of access to check for.
@@ -462,7 +462,7 @@ export const layer = Layer.effect(
 			);
 
 		const watch: ServiceInterface['watch'] = (path, options) =>
-			Stream.asyncInterrupt<never, MError.FunctionPort, [eventType: string, filename: string]>((emit) => {
+			Stream.asyncInterrupt<never, MErrors.FunctionPort, [eventType: string, filename: string]>((emit) => {
 				const watcher = nodeFs.watch(path, { ...options, persistent: false });
 
 				watcher.on('change', (eventType, filename) => void emit.single([eventType, filename as string]));
@@ -470,7 +470,7 @@ export const layer = Layer.effect(
 					'error',
 					(error) =>
 						void emit.die(
-							new MError.FunctionPort({
+							new MErrors.FunctionPort({
 								originalError: error,
 								originalFunctionName: 'fs.watch',
 								moduleName: moduleTag,
