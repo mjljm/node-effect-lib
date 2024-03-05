@@ -10,7 +10,7 @@ const moduleTag = '@mjljm/node-effect-lib/NStream/';
 
 export const feedWritableStream =
 	<A>(s: WritableStream<A>) =>
-	<R, E>(self: Stream.Stream<R, E, A>): Effect.Effect<R, E, void> =>
+	<R, E>(self: Stream.Stream<A, E, R>): Effect.Effect<void, E, R> =>
 		pipe(
 			Effect.acquireRelease(
 				Effect.sync(() => s.getWriter()),

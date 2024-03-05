@@ -1,5 +1,5 @@
 import * as NPath from '#mjljm/node-effect-lib/Path';
-import * as PlatformNodeFs from '@effect/platform-node/FileSystem';
+import * as PlatformNodeFs from '@effect/platform-node/NodeFileSystem';
 import { PlatformError } from '@effect/platform/Error';
 import * as PlatformFs from '@effect/platform/FileSystem';
 import { MEffect, MErrors, MTree } from '@mjljm/effect-lib';
@@ -9,7 +9,6 @@ import {
 	Context,
 	Data,
 	Effect,
-	Either,
 	Equal,
 	Layer,
 	Option,
@@ -27,7 +26,7 @@ import * as nodeFs from 'node:fs';
 
 const moduleTag = '@mjljm/node-effect-lib/NFs/';
 
-const PlatformNodeFsService = PlatformNodeFs.FileSystem;
+const PlatformNodeFsService = PlatformFs.FileSystem;
 const PlatformNodeFsLive = PlatformNodeFs.layer;
 
 /**
@@ -45,7 +44,7 @@ export type PathWithStat<
 	L extends TypedPath.PathLinkType,
 	P extends TypedPath.PathPositionType,
 	T extends TypedPath.PathTargetType
-> = [path: TypedPath.TypedPath<L, P, T>, stat: PlatformNodeFs.File.Info];
+> = [path: TypedPath.TypedPath<L, P, T>, stat: PlatformFs.File.Info];
 
 export type FilePathFragmentWithStat = PathWithStat<TypedPath.PathLinkType, 'fragment', 'file'>;
 export type FolderPathFragmentWithStat = PathWithStat<TypedPath.PathLinkType, 'fragment', 'folder'>;
@@ -96,14 +95,12 @@ export interface ServiceInterface {
 	/**
 	 * Get information about a path. Always follows symbolic links
 	 */
-	readonly stat: (path: TypedPath.ResolvablePath) => Effect.Effect<never, PlatformError, PlatformNodeFs.File.Info>;
+	readonly stat: (path: TypedPath.ResolvablePath) => Effect.Effect<PlatformFs.File.Info, PlatformError>;
 
 	/**
 	 * Get information about a path. Does not follow symbolic links
 	 */
-	readonly lstat: (
-		path: TypedPath.ResolvablePath
-	) => Effect.Effect<never, PlatformError, PlatformNodeFs.File.Info>;
+	readonly lstat: (path: TypedPath.ResolvablePath) => Effect.Effect<PlatformFs.File.Info, PlatformError>;
 
 	/**
 	 * Reads the contents of a file. See default value for encoding in NodeJs readfile doc.
@@ -111,14 +108,14 @@ export interface ServiceInterface {
 	readonly readFileString: (
 		path: TypedPath.ResolvableFilePath,
 		encoding?: string
-	) => Effect.Effect<never, PlatformError, string>;
+	) => Effect.Effect<string, PlatformError>;
 
 	/**
 	 * Lists the contents of a directory.
 	 */
 	readonly readDirectory: (
 		path: TypedPath.ResolvableFolderPath
-	) => Effect.Effect<never, PlatformError, ReadonlyArray<TypedPath.PathFragment>>;
+	) => Effect.Effect<ReadonlyArray<TypedPath.PathFragment>, PlatformError>;
 
 	/**
 	 * Same as readDirectory but also returns files' stats
@@ -127,9 +124,8 @@ export interface ServiceInterface {
 		path: TypedPath.ResolvableFolderPath,
 		concurrencyOptions?: { readonly concurrency?: Concurrency }
 	) => Effect.Effect<
-		never,
-		PlatformError,
-		ReadonlyArray<PathWithStat<TypedPath.PathLinkType, 'fragment', TypedPath.PathTargetType>>
+		ReadonlyArray<PathWithStat<TypedPath.PathLinkType, 'fragment', TypedPath.PathTargetType>>,
+		PlatformError
 	>;
 
 	/**
@@ -140,9 +136,8 @@ export interface ServiceInterface {
 		readonly dirsExclude: Predicate.Predicate<TypedPath.FolderPathFragment>;
 		readonly concurrencyOptions?: { readonly concurrency?: Concurrency };
 	}) => Effect.Effect<
-		never,
-		PlatformError | DirStructureError,
-		ReadonlyArray<PathWithStat<TypedPath.PathLinkType, P, 'file'>>
+		ReadonlyArray<PathWithStat<TypedPath.PathLinkType, P, 'file'>>,
+		PlatformError | DirStructureError
 	>;
 
 	/**
@@ -151,7 +146,7 @@ export interface ServiceInterface {
 	 * @param isTargetDir Function that returns an effectful false to stop the search, or an effectful true to continue
 	 * @returns the matching path if found. Returns Cause.NoSuchElementException otherwise
 	 */
-	readonly readDirectoriesUpwardWhile: <R, E, L extends TypedPath.PathLinkType>(params: {
+	readonly readDirectoriesUpwardWhile: <E, R, L extends TypedPath.PathLinkType>(params: {
 		readonly path: TypedPath.TypedPath<L, 'absolute', 'folder'>;
 		readonly isTargetDir: MEffect.Predicate<
 			[
@@ -162,14 +157,14 @@ export interface ServiceInterface {
 				>,
 				contents: ReadonlyArray<PathWithStat<TypedPath.PathLinkType, 'fragment', TypedPath.PathTargetType>>
 			],
-			R,
-			E
+			E,
+			R
 		>;
 		readonly concurrencyOptions?: { readonly concurrency?: Concurrency };
 	}) => Effect.Effect<
-		R,
+		TypedPath.TypedPath<[L] extends ['real'] ? 'real' : TypedPath.PathLinkType, 'absolute', 'folder'>,
 		PlatformError | E | Cause.NoSuchElementException,
-		TypedPath.TypedPath<[L] extends ['real'] ? 'real' : TypedPath.PathLinkType, 'absolute', 'folder'>
+		R
 	>;
 
 	/**
@@ -181,7 +176,7 @@ export interface ServiceInterface {
 	readonly watch: (
 		path: TypedPath.ResolvablePath,
 		options?: { readonly recursive?: boolean; readonly encoding?: BufferEncoding }
-	) => Stream.Stream<never, MErrors.FunctionPort, [eventType: string, filename: string]>;
+	) => Stream.Stream<[eventType: string, filename: string], MErrors.FunctionPort>;
 
 	/**
 	 * Checks if a path can be accessed. You can optionally specify the level of access to check for.
@@ -189,7 +184,7 @@ export interface ServiceInterface {
 	readonly access: (
 		path: TypedPath.ResolvablePath,
 		options?: PlatformFs.AccessFileOptions
-	) => Effect.Effect<never, PlatformError, void>;
+	) => Effect.Effect<void, PlatformError>;
 
 	/**
 	 * Copy a directory from `fromPath` to `toPath`.
@@ -200,45 +195,41 @@ export interface ServiceInterface {
 		fromPath: TypedPath.ResolvableFolderPath,
 		toPath: TypedPath.ResolvableFolderPath,
 		options?: PlatformFs.CopyOptions
-	) => Effect.Effect<never, PlatformError, void>;
+	) => Effect.Effect<void, PlatformError>;
 	/**
 	 * Copy a file from `fromPath` to `toPath`.
 	 */
 	readonly copyFile: (
 		fromPath: TypedPath.ResolvableFolderPath,
 		toPath: TypedPath.ResolvablePath
-	) => Effect.Effect<never, PlatformError, void>;
+	) => Effect.Effect<void, PlatformError>;
 	/**
 	 * Change the permissions of a path.
 	 */
-	readonly chmod: (path: TypedPath.ResolvablePath, mode: number) => Effect.Effect<never, PlatformError, void>;
+	readonly chmod: (path: TypedPath.ResolvablePath, mode: number) => Effect.Effect<void, PlatformError>;
 	/**
 	 * Change the owner and group of a path.
 	 */
-	readonly chown: (
-		path: TypedPath.ResolvablePath,
-		uid: number,
-		gid: number
-	) => Effect.Effect<never, PlatformError, void>;
+	readonly chown: (path: TypedPath.ResolvablePath, uid: number, gid: number) => Effect.Effect<void, PlatformError>;
 	/**
 	 * Check if a path exists.
 	 */
-	readonly exists: (path: TypedPath.ResolvablePath) => Effect.Effect<never, PlatformError, boolean>;
+	readonly exists: (path: TypedPath.ResolvablePath) => Effect.Effect<boolean, PlatformError>;
 	/**
 	 * Create a hard link from `fromPath` to `toPath`.
 	 */
 	readonly link: (
 		fromPath: TypedPath.ResolvableFilePath,
 		toPath: TypedPath.ResolvableFilePath
-	) => Effect.Effect<never, PlatformError, void>;
+	) => Effect.Effect<void, PlatformError>;
 	/**
 	 * Create a directory at `path`. You can optionally specify the mode and
 	 * whether to recursively create nested directories.
 	 */
 	readonly makeDirectory: (
 		path: TypedPath.ResolvableFolderPath,
-		options?: PlatformNodeFs.MakeDirectoryOptions
-	) => Effect.Effect<never, PlatformError, void>;
+		options?: PlatformFs.MakeDirectoryOptions
+	) => Effect.Effect<void, PlatformError>;
 	/**
 	 * Create a temporary directory.
 	 *
@@ -250,8 +241,8 @@ export interface ServiceInterface {
 	 * `prefix` option.
 	 */
 	readonly makeTempDirectory: (
-		options?: PlatformNodeFs.MakeTempDirectoryOptions
-	) => Effect.Effect<never, PlatformError, string>;
+		options?: PlatformFs.MakeTempDirectoryOptions
+	) => Effect.Effect<string, PlatformError>;
 	/**
 	 * Create a temporary directory inside a scope.
 	 *
@@ -259,16 +250,14 @@ export interface ServiceInterface {
 	 * automatically deleted when the scope is closed.
 	 */
 	readonly makeTempDirectoryScoped: (
-		options?: PlatformNodeFs.MakeTempDirectoryOptions
-	) => Effect.Effect<Scope.Scope, PlatformError, string>;
+		options?: PlatformFs.MakeTempDirectoryOptions
+	) => Effect.Effect<string, PlatformError, Scope.Scope>;
 	/**
 	 * Create a temporary file.
 	 * The directory creation is functionally equivalent to `makeTempDirectory`.
 	 * The file name will be a randomly generated string.
 	 */
-	readonly makeTempFile: (
-		options?: PlatformNodeFs.MakeTempFileOptions
-	) => Effect.Effect<never, PlatformError, string>;
+	readonly makeTempFile: (options?: PlatformFs.MakeTempFileOptions) => Effect.Effect<string, PlatformError>;
 	/**
 	 * Create a temporary file inside a scope.
 	 *
@@ -276,8 +265,8 @@ export interface ServiceInterface {
 	 * automatically deleted when the scope is closed.
 	 */
 	readonly makeTempFileScoped: (
-		options?: PlatformNodeFs.MakeTempFileOptions
-	) => Effect.Effect<Scope.Scope, PlatformError, string>;
+		options?: PlatformFs.MakeTempFileOptions
+	) => Effect.Effect<string, PlatformError, Scope.Scope>;
 	/**
 	 * Open a file at `path` with the specified `options`.
 	 *
@@ -285,16 +274,16 @@ export interface ServiceInterface {
 	 */
 	readonly open: (
 		path: TypedPath.ResolvableFilePath,
-		options?: PlatformNodeFs.OpenFileOptions
-	) => Effect.Effect<Scope.Scope, PlatformError, PlatformNodeFs.File>;
+		options?: PlatformFs.OpenFileOptions
+	) => Effect.Effect<PlatformFs.File, PlatformError, Scope.Scope>;
 	/**
 	 * Read the contents of a file.
 	 */
-	readonly readFile: (path: TypedPath.ResolvableFilePath) => Effect.Effect<never, PlatformError, Uint8Array>;
+	readonly readFile: (path: TypedPath.ResolvableFilePath) => Effect.Effect<Uint8Array, PlatformError>;
 	/**
 	 * Read the destination of a symbolic link.
 	 */
-	readonly readLink: (path: TypedPath.ResolvableSymbolicPath) => Effect.Effect<never, PlatformError, string>;
+	readonly readLink: (path: TypedPath.ResolvableSymbolicPath) => Effect.Effect<string, PlatformError>;
 	/**
 	 * Remove a file or directory.
 	 *
@@ -303,22 +292,22 @@ export interface ServiceInterface {
 	 */
 	readonly remove: (
 		path: TypedPath.ResolvablePath,
-		options?: PlatformNodeFs.RemoveOptions
-	) => Effect.Effect<never, PlatformError, void>;
+		options?: PlatformFs.RemoveOptions
+	) => Effect.Effect<void, PlatformError>;
 	/**
 	 * Rename a file or directory.
 	 */
 	readonly rename: <T extends TypedPath.PathTargetType>(
 		oldPath: TypedPath.TypedPath<TypedPath.PathLinkType, TypedPath.PathPositionType, T>,
 		newPath: TypedPath.TypedPath<TypedPath.PathLinkType, TypedPath.PathPositionType, T>
-	) => Effect.Effect<never, PlatformError, void>;
+	) => Effect.Effect<void, PlatformError>;
 	/**
 	 * Create a writable `Sink` for the specified `path`.
 	 */
 	readonly sink: (
 		path: TypedPath.ResolvableFilePath,
-		options?: PlatformNodeFs.SinkOptions
-	) => Sink.Sink<never, PlatformError, Uint8Array, never, void>;
+		options?: PlatformFs.SinkOptions
+	) => Sink.Sink<void, Uint8Array, never, PlatformError>;
 	/**
 	 * Create a readable `Stream` for the specified `path`.
 	 *
@@ -333,15 +322,15 @@ export interface ServiceInterface {
 	 */
 	readonly stream: (
 		path: TypedPath.ResolvableFilePath,
-		options?: PlatformNodeFs.StreamOptions
-	) => Stream.Stream<never, PlatformError, Uint8Array>;
+		options?: PlatformFs.StreamOptions
+	) => Stream.Stream<Uint8Array, PlatformError>;
 	/**
 	 * Create a symbolic link from `fromPath` to `toPath`.
 	 */
 	readonly symlink: <T extends TypedPath.PathTargetType>(
 		fromPath: TypedPath.TypedPath<TypedPath.PathLinkType, TypedPath.PathPositionType, T>,
 		toPath: TypedPath.TypedPath<TypedPath.PathLinkType, TypedPath.PathPositionType, T>
-	) => Effect.Effect<never, PlatformError, void>;
+	) => Effect.Effect<void, PlatformError>;
 	/**
 	 * Truncate a file to a specified length. If the `length` is not specified,
 	 * the file will be truncated to length `0`.
@@ -349,7 +338,7 @@ export interface ServiceInterface {
 	readonly truncate: (
 		path: TypedPath.ResolvableFilePath,
 		length?: PlatformFs.SizeInput
-	) => Effect.Effect<never, PlatformError, void>;
+	) => Effect.Effect<void, PlatformError>;
 	/**
 	 * Change the file system timestamps of path.
 	 */
@@ -357,15 +346,15 @@ export interface ServiceInterface {
 		path: TypedPath.ResolvablePath,
 		atime: Date | number,
 		mtime: Date | number
-	) => Effect.Effect<never, PlatformError, void>;
+	) => Effect.Effect<void, PlatformError>;
 	/**
 	 * Write data to a file at `path`.
 	 */
 	readonly writeFile: (
 		path: TypedPath.ResolvableFilePath,
 		data: Uint8Array,
-		options?: PlatformNodeFs.WriteFileOptions
-	) => Effect.Effect<never, PlatformError, void>;
+		options?: PlatformFs.WriteFileOptions
+	) => Effect.Effect<void, PlatformError>;
 	/**
 	 * Write a string to a file at `path`.
 	 */
@@ -373,10 +362,10 @@ export interface ServiceInterface {
 		path: TypedPath.ResolvableFilePath,
 		data: string,
 		options?: PlatformFs.WriteFileStringOptions
-	) => Effect.Effect<never, PlatformError, void>;
+	) => Effect.Effect<void, PlatformError>;
 }
 
-export const Service = Context.Tag<ServiceInterface>(Symbol.for(moduleTag + 'Service'));
+export class Service extends Context.Tag(moduleTag + 'Service')<Service, ServiceInterface>() {}
 
 export const layer = Layer.effect(
 	Service,
@@ -462,7 +451,7 @@ export const layer = Layer.effect(
 			);
 
 		const watch: ServiceInterface['watch'] = (path, options) =>
-			Stream.asyncInterrupt<never, MErrors.FunctionPort, [eventType: string, filename: string]>((emit) => {
+			Stream.async<[eventType: string, filename: string], MErrors.FunctionPort, never>((emit) => {
 				const watcher = nodeFs.watch(path, { ...options, persistent: false });
 
 				watcher.on('change', (eventType, filename) => void emit.single([eventType, filename as string]));
@@ -480,7 +469,7 @@ export const layer = Layer.effect(
 				);
 				watcher.on('close', () => void emit.end());
 
-				return Either.left(Effect.succeed(watcher.close()));
+				return Effect.succeed(watcher.close());
 			});
 
 		return {

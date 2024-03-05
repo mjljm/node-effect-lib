@@ -1,6 +1,8 @@
-import * as PlatformNodeFs from '@effect/platform-node/FileSystem';
-import * as PlatformNodePath from '@effect/platform-node/Path';
+import * as PlatformNodeFs from '@effect/platform-node/NodeFileSystem';
+import * as PlatformNodePath from '@effect/platform-node/NodePath';
 import { BadArgument, PlatformError } from '@effect/platform/Error';
+import * as PlatformFs from '@effect/platform/FileSystem';
+import * as PlatformPath from '@effect/platform/Path';
 import { TypedPath } from '@mjljm/js-lib';
 import { Context, Effect, Layer, Predicate, pipe } from 'effect';
 import { NoSuchElementException } from 'effect/Cause';
@@ -8,8 +10,8 @@ import { homedir } from 'node:os';
 
 const moduleTag = '@mjljm/node-effect-lib/NPath/';
 
-const PlatformNodePathService = PlatformNodePath.Path;
-const PlatformNodeFsService = PlatformNodeFs.FileSystem;
+const PlatformNodePathService = PlatformPath.Path;
+const PlatformNodeFsService = PlatformFs.FileSystem;
 
 const PlatformNodeFsLive = PlatformNodeFs.layer;
 // layerWin32 implements functions that behave similarly on Windows and Linux
@@ -35,55 +37,55 @@ export interface ServiceInterface {
 	 */
 	readonly ResolvablePath: (
 		p: string
-	) => Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.ResolvablePath>;
+	) => Effect.Effect<TypedPath.ResolvablePath, PlatformError | NoSuchElementException>;
 	readonly ResolvableFilePath: {
 		<L extends TypedPath.PathLinkType, P extends Exclude<TypedPath.PathPositionType, 'fragment'>>(
 			p: TypedPath.TypedPath<L, P, TypedPath.PathTargetType>
-		): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.TypedPath<L, P, 'file'>>;
-		(p: string): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.ResolvableFilePath>;
+		): Effect.Effect<TypedPath.TypedPath<L, P, 'file'>, PlatformError | NoSuchElementException>;
+		(p: string): Effect.Effect<TypedPath.ResolvableFilePath, PlatformError | NoSuchElementException>;
 	};
 	readonly ResolvableFolderPath: {
 		<L extends TypedPath.PathLinkType, P extends Exclude<TypedPath.PathPositionType, 'fragment'>>(
 			p: TypedPath.TypedPath<L, P, TypedPath.PathTargetType>
-		): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.TypedPath<L, P, 'folder'>>;
-		(p: string): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.ResolvableFolderPath>;
+		): Effect.Effect<TypedPath.TypedPath<L, P, 'folder'>, PlatformError | NoSuchElementException>;
+		(p: string): Effect.Effect<TypedPath.ResolvableFolderPath, PlatformError | NoSuchElementException>;
 	};
 	readonly AbsolutePath: {
 		<L extends TypedPath.PathLinkType, T extends TypedPath.PathTargetType>(
 			p: TypedPath.TypedPath<L, TypedPath.PathPositionType, T>
-		): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.TypedPath<L, 'absolute', T>>;
-		(p: string): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.AbsolutePath>;
+		): Effect.Effect<TypedPath.TypedPath<L, 'absolute', T>, PlatformError | NoSuchElementException>;
+		(p: string): Effect.Effect<TypedPath.AbsolutePath, PlatformError | NoSuchElementException>;
 	};
 	readonly RelativePath: {
 		<L extends TypedPath.PathLinkType, T extends TypedPath.PathTargetType>(
 			p: TypedPath.TypedPath<L, TypedPath.PathPositionType, T>
-		): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.TypedPath<L, 'relative', T>>;
-		(p: string): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.RelativePath>;
+		): Effect.Effect<TypedPath.TypedPath<L, 'relative', T>, PlatformError | NoSuchElementException>;
+		(p: string): Effect.Effect<TypedPath.RelativePath, PlatformError | NoSuchElementException>;
 	};
 	readonly ResolvableSymbolicPath: {
 		<P extends Exclude<TypedPath.PathPositionType, 'fragment'>, T extends TypedPath.PathTargetType>(
 			p: TypedPath.TypedPath<TypedPath.PathLinkType, P, T>
-		): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.TypedPath<'symbolic', P, T>>;
-		(p: string): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.ResolvableSymbolicPath>;
+		): Effect.Effect<TypedPath.TypedPath<'symbolic', P, T>, PlatformError | NoSuchElementException>;
+		(p: string): Effect.Effect<TypedPath.ResolvableSymbolicPath, PlatformError | NoSuchElementException>;
 	};
 	readonly ResolvableRealPath: {
 		<P extends Exclude<TypedPath.PathPositionType, 'fragment'>, T extends TypedPath.PathTargetType>(
 			p: TypedPath.TypedPath<TypedPath.PathLinkType, P, T>
-		): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.TypedPath<'real', P, T>>;
-		(p: string): Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.ResolvableRealPath>;
+		): Effect.Effect<TypedPath.TypedPath<'real', P, T>, PlatformError | NoSuchElementException>;
+		(p: string): Effect.Effect<TypedPath.ResolvableRealPath, PlatformError | NoSuchElementException>;
 	};
 	readonly AbsoluteFilePath: (
 		p: string
-	) => Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.AbsoluteFilePath>;
+	) => Effect.Effect<TypedPath.AbsoluteFilePath, PlatformError | NoSuchElementException>;
 	readonly AbsoluteFolderPath: (
 		p: string
-	) => Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.AbsoluteFolderPath>;
+	) => Effect.Effect<TypedPath.AbsoluteFolderPath, PlatformError | NoSuchElementException>;
 	readonly RelativeFilePath: (
 		p: string
-	) => Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.RelativeFilePath>;
+	) => Effect.Effect<TypedPath.RelativeFilePath, PlatformError | NoSuchElementException>;
 	readonly RelativeFolderPath: (
 		p: string
-	) => Effect.Effect<never, PlatformError | NoSuchElementException, TypedPath.RelativeFolderPath>;
+	) => Effect.Effect<TypedPath.RelativeFolderPath, PlatformError | NoSuchElementException>;
 	/**
 	 * Join all arguments together and normalize the resulting path. Joining negative fragments to a real path always yields a real path. Joining positive fragments to a symbolic path always yields a symbolic path. We usually don't know if a fragment is real or symbolic. So we simplify the function type by returning a path whose link type is unknown.
 	 */
@@ -158,7 +160,7 @@ export interface ServiceInterface {
 	 */
 	readonly toRealAbsolutePath: <T extends TypedPath.PathTargetType>(
 		path: TypedPath.TypedPath<TypedPath.PathLinkType, Exclude<TypedPath.PathPositionType, 'fragment'>, T>
-	) => Effect.Effect<never, PlatformError, TypedPath.TypedPath<'real', 'absolute', T>>;
+	) => Effect.Effect<TypedPath.TypedPath<'real', 'absolute', T>, PlatformError>;
 
 	/**
 	 * Solves the relative path from {from} to {to}. If to or from is the zero-length string (with 'unknown' TypedPath.PathLinkType), the current working directory is used instead. At times we have two absolute paths, and we need to derive the relative path from one to the other. This is actually the reverse transform of path.resolve. If to or from is symbolic, the result is symbolic (but can be real at the same time). If to and from are real, the result is real. If to and from are both unknown, the resulting path has unknown TypedPath.PathLinkType.
@@ -198,11 +200,11 @@ export interface ServiceInterface {
 	 * The platform-specific file separator. '\\' or '/'.
 	 */
 	readonly sep: string;
-	readonly fromFileUrl: (url: URL) => Effect.Effect<never, BadArgument, TypedPath.RealAbsoluteFilePath>;
-	readonly toFileUrl: (path: TypedPath.ResolvablePath) => Effect.Effect<never, BadArgument, URL>;
+	readonly fromFileUrl: (url: URL) => Effect.Effect<TypedPath.RealAbsoluteFilePath, BadArgument>;
+	readonly toFileUrl: (path: TypedPath.ResolvablePath) => Effect.Effect<URL, BadArgument>;
 }
 
-export const Service = Context.Tag<ServiceInterface>(Symbol.for(moduleTag + 'Service'));
+export class Service extends Context.Tag(moduleTag + 'Service')<Service, ServiceInterface>() {}
 
 export const layer = Layer.effect(
 	Service,
