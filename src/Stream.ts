@@ -1,4 +1,3 @@
-import { MErrors } from '@mjljm/effect-lib';
 import { BinaryLike, CipherKey, createDecipheriv } from 'crypto';
 import { Effect, Stream, pipe } from 'effect';
 
@@ -36,14 +35,14 @@ export const feedWritableStream =
 
 export const decipheriv =
 	(algorithm: string, key: CipherKey, iv: BinaryLike | null) =>
-	<R, E>(self: Stream.Stream<R, E, Uint8Array>): Stream.Stream<R, E | MErrors.FunctionPort, Uint8Array> =>
+	<R, E>(self: Stream.Stream<R, E, Uint8Array>): Stream.Stream<R, E | MFunctionPortError.Type, Uint8Array> =>
 		Stream.unwrap(
 			Effect.gen(function* (_) {
 				const decipher = yield* _(
 					Effect.try({
 						try: () => createDecipheriv(algorithm, key, iv),
 						catch: (error) =>
-							new MErrors.FunctionPort({
+							new MFunctionPortError.Type({
 								originalError: error,
 								originalFunctionName: 'crypto.createDecipheriv',
 								moduleName: moduleTag,
@@ -51,10 +50,10 @@ export const decipheriv =
 							})
 					})
 				);
-				const decipheredStream = Stream.fromReadableStream<Uint8Array, MErrors.FunctionPort>(
+				const decipheredStream = Stream.fromReadableStream<Uint8Array, MFunctionPortError.Type>(
 					() => decipher,
 					(error) =>
-						new MErrors.FunctionPort({
+						new MFunctionPortError.Type({
 							originalError: error,
 							originalFunctionName: 'crypto.createDecipheriv.getReader',
 							moduleName: moduleTag,
@@ -62,7 +61,7 @@ export const decipheriv =
 						})
 				);
 
-				const essai = Stream.asyncInterrupt<never, MErrors.FunctionPort, [eventType: string, filename: string]>((emit) => {
+				const essai = Stream.asyncInterrupt<never, MFunctionPortError.Type, [eventType: string, filename: string]>((emit) => {
 					while ()
 	
 					watcher.on('change', (eventType, filename) => void emit.single([eventType, filename as string]));
@@ -70,7 +69,7 @@ export const decipheriv =
 						'error',
 						(error) =>
 							void emit.die(
-								new MErrors.FunctionPort({
+								new MFunctionPortError.Type({
 									originalError: error,
 									originalFunctionName: 'fs.watch',
 									moduleName: moduleTag,
