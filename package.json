@@ -48,9 +48,9 @@
 		"clean-pnpm-cache": "rimraf node_modules"
 	},
 	"dependencies": {
-		"@effect/platform": "0.48.7",
-		"@effect/platform-node": "0.45.9",
-		"@effect/schema": "0.64.4",
+		"@effect/platform": "0.48.8",
+		"@effect/platform-node": "0.45.10",
+		"@effect/schema": "0.64.5",
 		"@mjljm/effect-lib": "workspace:*",
 		"@mjljm/js-lib": "workspace:*",
 		"@mjljm/node-lib": "workspace:*",
