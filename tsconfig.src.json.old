@@ -1,0 +1,10 @@
+{
+	"extends": "@mjljm/configs-manager/public/tsconfig.base.json",
+	"include": ["src/**/*"],
+	"compilerOptions": {
+		"rootDir": ".",
+		"outDir": "./dist/esm",
+		"tsBuildInfoFile": "./dist/.tsbuildinfo/src.tsbuildinfo",
+		"lib": ["ESNext"]
+	}
+}

@@ -1,0 +1,11 @@
+{
+	"extends": "@mjljm/configs-manager/public/tsconfig.base.json",
+	"include": ["*", "test/**/*", "example/**/*", "dist/**/*"],
+	"compilerOptions": {
+		"rootDir": ".",
+		"outDir": "dist/esm",
+		"lib": ["ESNext"],
+		"types": ["node"],
+		"tsBuildInfoFile": "dist/.tsbuildinfo/others.tsbuildinfo"
+	}
+}

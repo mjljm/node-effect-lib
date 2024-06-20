@@ -1,0 +1,3 @@
+import config from '@mjljm/configs-manager/configs/eslint.config.node';
+
+export default config;

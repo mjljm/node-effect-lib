@@ -1,0 +1,4 @@
+{
+	"extends": "@mjljm/configs-manager/public/tsconfig.base.json",
+	"include": ["*", "test/**/*", "example/**/*", "src/**/*"]
+}

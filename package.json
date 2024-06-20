@@ -1,0 +1,79 @@
+{
+	"name": "@mjljm-dev/node-effect-lib",
+	"type": "module",
+	"sideEffects": [],
+	"packageManager": "pnpm@9.4.0",
+	"author": "Jérôme MARTIN",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/mjljm/node-effect-lib"
+	},
+	"bugs": {
+		"url": "https://github.com/mjljm/node-effect-lib/issues"
+	},
+	"homepage": "https://github.com/mjljm/node-effect-lib",
+	"scripts": {
+		"circular": "madge --extensions ts --circular --no-color --no-spinner src",
+		"lint-fix": "pnpm lint --fix",
+		"test": "vitest",
+		"examples": "pnpx vite-node example/example1.ts",
+		"distify": "distify-package-json",
+		"check": "tsc -b tsconfig.json",
+		"lint": "eslint",
+		"lint-rules": "pnpx @eslint/config-inspector",
+		"clean-pnpm-cache": "shx rm -rf node_modules",
+		"update-config-files": "update-config-files",
+		"build": "pnpm build-esm && pnpm build-cjs && pnpm build-annotate",
+		"build-esm": "tsc -b tsconfig.build.json",
+		"build-cjs": "babel dist/esm --plugins @babel/transform-export-namespace-from --plugins @babel/transform-modules-commonjs --out-dir dist/cjs --source-maps",
+		"build-annotate": "babel build --plugins annotate-pure-calls --out-dir ${Perimeters.distFolderName} --source-maps"
+	},
+	"exports": {
+		"./public/*": {
+			"require": "./public/*"
+		},
+		".": {
+			"import": "./src/index.ts"
+		}
+	},
+	"imports": {
+		"#src/index": {
+			"import": null
+		},
+		"#src/*": {
+			"import": "./src/*.ts"
+		},
+		"#mjljm/js-lib": "@mjljm-dev/js-lib",
+		"#mjljm/effect-lib": "@mjljm-dev/effect-lib",
+		"#mjljm/effect-pretty-print": "@mjljm-dev/effect-pretty-print",
+		"#mjljm/effect-report": "@mjljm-dev/effect-report",
+		"#mjljm/effect-date": "@mjljm-dev/effect-date",
+		"#mjljm/node-effect-lib": "@mjljm-dev/node-effect-lib"
+	},
+	"files": [
+		"/src/"
+	],
+	"tags": [
+		"effect",
+		"typescript",
+		"algebraic-data-types",
+		"functional-programming"
+	],
+	"keywords": [
+		"effect",
+		"typescript",
+		"algebraic-data-types",
+		"functional-programming"
+	],
+	"version": "1.0.0",
+	"description": "A complement to the official @effect/platform library with add-ons for Node.js",
+	"peerDependencies": {
+		"@mjljm-dev/effect-lib": "workspace:*",
+		"@mjljm-dev/js-lib": "workspace:*",
+		"@effect/platform": "0.57.4",
+		"@effect/platform-node": "0.51.13",
+		"@effect/schema": "0.68.1",
+		"effect": "3.3.5"
+	}
+}

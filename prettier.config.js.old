@@ -1,0 +1,2 @@
+export { default } from '@mjljm/configs-manager/configs/prettier.config';
+
