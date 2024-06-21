@@ -14,6 +14,11 @@
 	},
 	"homepage": "https://github.com/mjljm/node-effect-lib",
 	"scripts": {
+		"check": "tsc -b tsconfig.json",
+		"lint": "eslint",
+		"lint-rules": "pnpx @eslint/config-inspector",
+		"clean-pnpm-cache": "shx rm -rf node_modules",
+		"update-config-files": "update-config-files",
 		"circular": "madge --extensions ts --circular --no-color --no-spinner src",
 		"lint-fix": "pnpm lint --fix",
 		"test": "vitest",
@@ -27,11 +32,6 @@
 		"generate-types": "tsc -b tsconfig.build.json --emitDeclarationOnly",
 		"cp-public": "shx cp -r public ./dist/public/",
 		"clean-dist": "shx rm -rf dist",
-		"check": "tsc -b tsconfig.json",
-		"lint": "eslint",
-		"lint-rules": "pnpx @eslint/config-inspector",
-		"clean-pnpm-cache": "shx rm -rf node_modules",
-		"update-config-files": "update-config-files",
 		"build": "pnpm transpile-esm && pnpm transpile-cjs && pnpm transpile-annotate",
 		"register": "pnpm publish dist"
 	},
