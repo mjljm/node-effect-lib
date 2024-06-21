@@ -19,15 +19,21 @@
 		"test": "vitest",
 		"examples": "pnpx vite-node example/example1.ts",
 		"distify": "distify-package-json",
+		"bundle": "bundle-files",
+		"distify-and-build": "pnpm distify && pnpm build",
+		"transpile-esm": "tsc -b tsconfig.build.json",
+		"transpile-cjs": "babel dist/esm --plugins @babel/transform-export-namespace-from --plugins @babel/transform-modules-commonjs --out-dir dist/cjs --source-maps",
+		"transpile-annotate": "babel dist --plugins annotate-pure-calls --out-dir dist --source-maps",
+		"generate-types": "tsc -b tsconfig.build.json --emitDeclarationOnly",
+		"cp-public": "shx cp -r public ./dist/public/",
+		"clean-dist": "shx rm -rf dist",
 		"check": "tsc -b tsconfig.json",
 		"lint": "eslint",
 		"lint-rules": "pnpx @eslint/config-inspector",
 		"clean-pnpm-cache": "shx rm -rf node_modules",
 		"update-config-files": "update-config-files",
-		"build": "pnpm build-esm && pnpm build-cjs && pnpm build-annotate",
-		"build-esm": "tsc -b tsconfig.build.json",
-		"build-cjs": "babel dist/esm --plugins @babel/transform-export-namespace-from --plugins @babel/transform-modules-commonjs --out-dir dist/cjs --source-maps",
-		"build-annotate": "babel build --plugins annotate-pure-calls --out-dir ${Perimeters.distFolderName} --source-maps"
+		"build": "pnpm transpile-esm && pnpm transpile-cjs && pnpm transpile-annotate",
+		"register": "pnpm publish dist"
 	},
 	"exports": {
 		"./public/*": {

@@ -1,6 +1,6 @@
 {
 	"extends": "@mjljm/configs-manager/public/tsconfig.base.json",
-	"include": ["*", "test/**/*", "example/**/*", "dist/**/*"],
+	"include": ["*", "test/**/*", "example/**/*"],
 	"compilerOptions": {
 		"rootDir": ".",
 		"outDir": "dist/esm",

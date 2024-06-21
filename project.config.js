@@ -6,6 +6,7 @@ const packageJson = {
 	...ConfigManager.PackageSubRepo,
 	...ConfigManager.PackageEffectTags,
 	...ConfigManager.PackageSubRepoTranspiled,
+	...ConfigManager.PackageSubRepoPublic,
 	name: ConfigManager.PackageBase.name(packageName),
 	version: '1.0.0',
 	repository: ConfigManager.PackageBase.repository(packageName),
@@ -15,7 +16,8 @@ const packageJson = {
 	scripts: {
 		...ConfigManager.PackageSubRepo.scripts,
 		...ConfigManager.PackageBase.scripts,
-		...ConfigManager.PackageSubRepoTranspiled.scripts
+		...ConfigManager.PackageSubRepoTranspiled.scripts,
+		...ConfigManager.PackageSubRepoPublic.scripts
 	},
 	peerDependencies: {
 		'@mjljm-dev/effect-lib': 'workspace:*',
