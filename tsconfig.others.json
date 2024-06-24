@@ -6,6 +6,6 @@
 		"outDir": "dist/esm",
 		"lib": ["ESNext"],
 		"types": ["node"],
-		"tsBuildInfoFile": "dist/.tsbuildinfo/others.tsbuildinfo"
+		"tsBuildInfoFile": ".tsbuildinfo/others.tsbuildinfo"
 	}
 }

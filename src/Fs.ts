@@ -1,8 +1,8 @@
-import { MFs, MFunction, MPredicate, MTuple, MTypes } from "#mjljm/effect-lib";
-import * as NPath from "#src/Path";
-import * as PlatformNodeFs from "@effect/platform-node/NodeFileSystem";
-import * as PlatformError from "@effect/platform/Error";
-import * as PlatformFs from "@effect/platform/FileSystem";
+import { MFs, MFunction, MPredicate, MTuple, MTypes } from '#mjljm/effect-lib';
+import * as NPath from '#src/Path';
+import { Error as PlatformError, FileSystem as PlatformFs } from '@effect/platform';
+import { NodeFileSystem as PlatformNodeFs } from '@effect/platform-node';
+
 import {
 	Array,
 	Cause,
@@ -19,12 +19,12 @@ import {
 	Struct,
 	Tuple,
 	flow,
-	pipe,
-} from "effect";
+	pipe
+} from 'effect';
 
-import { Concurrency } from "effect/Types";
+import { Concurrency } from 'effect/Types';
 
-const moduleTag = "@mjljm/node-effect-lib/NFs/";
+const moduleTag = '@mjljm/node-effect-lib/NFs/';
 
 const PlatformNodeFsService = PlatformFs.FileSystem;
 const PlatformNodeFsLive = PlatformNodeFs.layer;
@@ -32,36 +32,29 @@ const PlatformNodeFsLive = PlatformNodeFs.layer;
 /**
  * @category type guards
  */
-export const isFileStat = (
-	s: PlatformFs.File.Info,
-): s is PlatformFs.File.Info & { type: "File" } => s.type === "File";
+export const isFileStat = (s: PlatformFs.File.Info): s is PlatformFs.File.Info & { type: 'File' } =>
+	s.type === 'File';
 
 /**
  * @category type guards
  */
 export const isFolderStat = (
-	s: PlatformFs.File.Info,
-): s is PlatformFs.File.Info & { type: "Directory" } => s.type === "Directory";
+	s: PlatformFs.File.Info
+): s is PlatformFs.File.Info & { type: 'Directory' } => s.type === 'Directory';
 
 /**
  * WithStat is a structure that associates a name or path to its stat
  *  @category models
  */
-export interface WithStat<
-	out P extends MFs.Path | MFs.Name = MFs.Path | MFs.Name,
-> {
+export interface WithStat<out P extends MFs.Path | MFs.Name = MFs.Path | MFs.Name> {
 	readonly target: P;
 	readonly stat: PlatformFs.File.Info &
-		(readonly [P] extends readonly [MFs.FileBrand]
-			? { readonly type: "File" }
-			: readonly [P] extends readonly [MFs.FolderBrand]
-				? { readonly type: "Directory" }
-				: { readonly type: "File" | "Directory" });
+		(readonly [P] extends readonly [MFs.FileBrand] ? { readonly type: 'File' }
+		: readonly [P] extends readonly [MFs.FolderBrand] ? { readonly type: 'Directory' }
+		: { readonly type: 'File' | 'Directory' });
 }
 
-type ExpandedWithStat<P extends MFs.Path | MFs.Name> = P extends unknown
-	? WithStat<P>
-	: never;
+type ExpandedWithStat<P extends MFs.Path | MFs.Name> = P extends unknown ? WithStat<P> : never;
 
 /**
  *  @category models
@@ -81,50 +74,44 @@ export type FilepathWithStat = WithStat<MFs.Filepath>;
 export type FolderpathWithStat = WithStat<MFs.Folderpath>;
 
 const makeExpandedWithStat = <P extends MFs.Path | MFs.Name>(
-	params: MTypes.Data<WithStat<P>>,
+	params: MTypes.Data<WithStat<P>>
 ): ExpandedWithStat<P> => params as ExpandedWithStat<P>;
 
 /**
  * @category Type guards
  */
-export const isFilenameWithStat = (
-	p: WithStat<MFs.Name>,
-): p is FilenameWithStat => isFileStat(p.stat);
+export const isFilenameWithStat = (p: WithStat<MFs.Name>): p is FilenameWithStat =>
+	isFileStat(p.stat);
 
 /**
  * @category Type guards
  */
-export const isFoldernameWithStat = (
-	p: WithStat<MFs.Name>,
-): p is FoldernameWithStat => isFolderStat(p.stat);
+export const isFoldernameWithStat = (p: WithStat<MFs.Name>): p is FoldernameWithStat =>
+	isFolderStat(p.stat);
 
 /**
  * @category Type guards
  */
-export const isFilePathWithStat = (
-	p: WithStat<MFs.Path>,
-): p is FilepathWithStat => isFileStat(p.stat);
+export const isFilePathWithStat = (p: WithStat<MFs.Path>): p is FilepathWithStat =>
+	isFileStat(p.stat);
 
 /**
  * @category Type guards
  */
-export const isFolderPathWithStat = (
-	p: WithStat<MFs.Path>,
-): p is FolderpathWithStat => isFolderStat(p.stat);
+export const isFolderPathWithStat = (p: WithStat<MFs.Path>): p is FolderpathWithStat =>
+	isFolderStat(p.stat);
 
 export interface ServiceInterface {
 	/**
 	 * Get information about a path. Always follows symbolic links
 	 */
 	readonly stat: <P extends MFs.Path>(
-		path: P,
+		path: P
 	) => Effect.Effect<
 		PlatformFs.File.Info &
-			(readonly [P] extends readonly [MFs.Filepath]
-				? { readonly type: "File" }
-				: readonly [P] extends readonly [MFs.Folderpath]
-					? { readonly type: "Directory" }
-					: never),
+			(readonly [P] extends readonly [MFs.Filepath] ? { readonly type: 'File' }
+			: readonly [P] extends readonly [MFs.Folderpath] ? { readonly type: 'Directory' }
+			: never),
 		PlatformError.PlatformError
 	>;
 
@@ -138,14 +125,14 @@ export interface ServiceInterface {
 	 */
 	readonly readFileString: (
 		path: MFs.Filepath,
-		encoding?: string,
+		encoding?: string
 	) => Effect.Effect<string, PlatformError.PlatformError>;
 
 	/**
 	 * Lists the contents of a directory.
 	 */
 	readonly readDirectory: (
-		path: MFs.Folderpath,
+		path: MFs.Folderpath
 	) => Effect.Effect<ReadonlyArray<MFs.Name>, PlatformError.PlatformError>;
 
 	/**
@@ -153,7 +140,7 @@ export interface ServiceInterface {
 	 */
 	readonly readDirectoryWithStats: (
 		path: MFs.Folderpath,
-		concurrencyOptions?: { readonly concurrency?: Concurrency },
+		concurrencyOptions?: { readonly concurrency?: Concurrency }
 	) => Effect.Effect<
 		ReadonlyArray<FilenameWithStat | FoldernameWithStat>,
 		PlatformError.PlatformError
@@ -175,10 +162,7 @@ export interface ServiceInterface {
 	readonly readDirectoriesUpwardWhile: <E, R>(params: {
 		readonly path: MFs.Folderpath;
 		readonly isTargetDir: MPredicate.EffectPredicate<
-			readonly [
-				currentPath: MFs.Folderpath,
-				contents: ReadonlyArray<WithStat<MFs.Name>>,
-			],
+			readonly [currentPath: MFs.Folderpath, contents: ReadonlyArray<WithStat<MFs.Name>>],
 			E,
 			R
 		>;
@@ -194,7 +178,7 @@ export interface ServiceInterface {
 	 */
 	readonly access: (
 		path: MFs.Path,
-		options?: PlatformFs.AccessFileOptions,
+		options?: PlatformFs.AccessFileOptions
 	) => Effect.Effect<void, PlatformError.PlatformError>;
 
 	/**
@@ -205,21 +189,21 @@ export interface ServiceInterface {
 	readonly copy: (
 		fromPath: MFs.Folderpath,
 		toPath: MFs.Folderpath,
-		options?: PlatformFs.CopyOptions,
+		options?: PlatformFs.CopyOptions
 	) => Effect.Effect<void, PlatformError.PlatformError>;
 	/**
 	 * Copy a file from `fromPath` to `toPath`.
 	 */
 	readonly copyFile: (
 		fromPath: MFs.Filepath,
-		toPath: MFs.Filepath,
+		toPath: MFs.Filepath
 	) => Effect.Effect<void, PlatformError.PlatformError>;
 	/**
 	 * Change the permissions of a path.
 	 */
 	readonly chmod: (
 		path: MFs.Path,
-		mode: number,
+		mode: number
 	) => Effect.Effect<void, PlatformError.PlatformError>;
 	/**
 	 * Change the owner and group of a path.
@@ -227,20 +211,18 @@ export interface ServiceInterface {
 	readonly chown: (
 		path: MFs.Path,
 		uid: number,
-		gid: number,
+		gid: number
 	) => Effect.Effect<void, PlatformError.PlatformError>;
 	/**
 	 * Check if a path exists.
 	 */
-	readonly exists: (
-		path: MFs.Path,
-	) => Effect.Effect<boolean, PlatformError.PlatformError>;
+	readonly exists: (path: MFs.Path) => Effect.Effect<boolean, PlatformError.PlatformError>;
 	/**
 	 * Create a hard link from `fromPath` to `toPath`.
 	 */
 	readonly link: (
 		fromPath: MFs.Filepath,
-		toPath: MFs.Filepath,
+		toPath: MFs.Filepath
 	) => Effect.Effect<void, PlatformError.PlatformError>;
 	/**
 	 * Create a directory at `path`. You can optionally specify the mode and
@@ -248,7 +230,7 @@ export interface ServiceInterface {
 	 */
 	readonly makeDirectory: (
 		path: MFs.Folderpath,
-		options?: PlatformFs.MakeDirectoryOptions,
+		options?: PlatformFs.MakeDirectoryOptions
 	) => Effect.Effect<void, PlatformError.PlatformError>;
 	/**
 	 * Create a temporary directory.
@@ -261,7 +243,7 @@ export interface ServiceInterface {
 	 * `prefix` option.
 	 */
 	readonly makeTempDirectory: (
-		options?: PlatformFs.MakeTempDirectoryOptions,
+		options?: PlatformFs.MakeTempDirectoryOptions
 	) => Effect.Effect<MFs.Folderpath, PlatformError.PlatformError>;
 	/**
 	 * Create a temporary directory inside a scope.
@@ -270,7 +252,7 @@ export interface ServiceInterface {
 	 * automatically deleted when the scope is closed.
 	 */
 	readonly makeTempDirectoryScoped: (
-		options?: PlatformFs.MakeTempDirectoryOptions,
+		options?: PlatformFs.MakeTempDirectoryOptions
 	) => Effect.Effect<MFs.Folderpath, PlatformError.PlatformError, Scope.Scope>;
 	/**
 	 * Create a temporary file.
@@ -278,7 +260,7 @@ export interface ServiceInterface {
 	 * The file name will be a randomly generated string.
 	 */
 	readonly makeTempFile: (
-		options?: PlatformFs.MakeTempFileOptions,
+		options?: PlatformFs.MakeTempFileOptions
 	) => Effect.Effect<MFs.Filepath, PlatformError.PlatformError>;
 	/**
 	 * Create a temporary file inside a scope.
@@ -287,7 +269,7 @@ export interface ServiceInterface {
 	 * automatically deleted when the scope is closed.
 	 */
 	readonly makeTempFileScoped: (
-		options?: PlatformFs.MakeTempFileOptions,
+		options?: PlatformFs.MakeTempFileOptions
 	) => Effect.Effect<MFs.Filepath, PlatformError.PlatformError, Scope.Scope>;
 	/**
 	 * Open the file at `path` with the specified `options`.
@@ -295,26 +277,20 @@ export interface ServiceInterface {
 	 */
 	readonly open: (
 		path: MFs.Filepath,
-		options?: PlatformFs.OpenFileOptions,
+		options?: PlatformFs.OpenFileOptions
 	) => Effect.Effect<PlatformFs.File, PlatformError.PlatformError, Scope.Scope>;
 	/**
 	 * Read the contents of a file.
 	 */
-	readonly readFile: (
-		path: MFs.Filepath,
-	) => Effect.Effect<Uint8Array, PlatformError.PlatformError>;
+	readonly readFile: (path: MFs.Filepath) => Effect.Effect<Uint8Array, PlatformError.PlatformError>;
 	/**
 	 * Read the destination of a symbolic link.
 	 */
-	readonly readLink: (
-		path: MFs.Path,
-	) => Effect.Effect<string, PlatformError.PlatformError>;
+	readonly readLink: (path: MFs.Path) => Effect.Effect<string, PlatformError.PlatformError>;
 	/**
 	 * Resolve a path to its canonicalized absolute pathname.
 	 */
-	readonly realPath: <T extends MFs.Path>(
-		path: T,
-	) => Effect.Effect<T, PlatformError.PlatformError>;
+	readonly realPath: <T extends MFs.Path>(path: T) => Effect.Effect<T, PlatformError.PlatformError>;
 	/**
 	 * Remove a file or directory.
 	 *
@@ -323,21 +299,21 @@ export interface ServiceInterface {
 	 */
 	readonly remove: (
 		path: MFs.Path,
-		options?: PlatformFs.RemoveOptions,
+		options?: PlatformFs.RemoveOptions
 	) => Effect.Effect<void, PlatformError.PlatformError>;
 	/**
 	 * Rename a file or directory.
 	 */
 	readonly rename: <T extends MFs.Path>(
 		oldPath: T,
-		newPath: T,
+		newPath: T
 	) => Effect.Effect<void, PlatformError.PlatformError>;
 	/**
 	 * Create a writable `Sink` for the specified `path`.
 	 */
 	readonly sink: (
 		path: MFs.Filepath,
-		options?: PlatformFs.SinkOptions,
+		options?: PlatformFs.SinkOptions
 	) => Sink.Sink<void, Uint8Array, never, PlatformError.PlatformError>;
 	/**
 	 * Create a readable `Stream` for the specified `path`.
@@ -353,14 +329,14 @@ export interface ServiceInterface {
 	 */
 	readonly stream: (
 		path: MFs.Filepath,
-		options?: PlatformFs.StreamOptions,
+		options?: PlatformFs.StreamOptions
 	) => Stream.Stream<Uint8Array, PlatformError.PlatformError>;
 	/**
 	 * Create a symbolic link from `fromPath` to `toPath`.
 	 */
 	readonly symlink: <T extends MFs.Path>(
 		fromPath: T,
-		toPath: T,
+		toPath: T
 	) => Effect.Effect<void, PlatformError.PlatformError>;
 	/**
 	 * Truncate a file to a specified length. If the `length` is not specified,
@@ -368,7 +344,7 @@ export interface ServiceInterface {
 	 */
 	readonly truncate: (
 		path: MFs.Filepath,
-		length?: PlatformFs.SizeInput,
+		length?: PlatformFs.SizeInput
 	) => Effect.Effect<void, PlatformError.PlatformError>;
 	/**
 	 * Change the file system timestamps of path.
@@ -376,13 +352,13 @@ export interface ServiceInterface {
 	readonly utimes: (
 		path: MFs.Path,
 		atime: Date | number,
-		mtime: Date | number,
+		mtime: Date | number
 	) => Effect.Effect<void, PlatformError.PlatformError>;
 	/**
 	 * Watch a directory or file for changes
 	 */
 	readonly watch: (
-		path: MFs.Path,
+		path: MFs.Path
 	) => Stream.Stream<PlatformFs.WatchEvent, PlatformError.PlatformError>;
 	/**
 	 * Write data to a file at `path`.
@@ -390,7 +366,7 @@ export interface ServiceInterface {
 	readonly writeFile: (
 		path: MFs.Filepath,
 		data: Uint8Array,
-		options?: PlatformFs.WriteFileOptions,
+		options?: PlatformFs.WriteFileOptions
 	) => Effect.Effect<void, PlatformError.PlatformError>;
 	/**
 	 * Write a string to a file at `path`.
@@ -398,14 +374,11 @@ export interface ServiceInterface {
 	readonly writeFileString: (
 		path: MFs.Filepath,
 		data: string,
-		options?: PlatformFs.WriteFileStringOptions,
+		options?: PlatformFs.WriteFileStringOptions
 	) => Effect.Effect<void, PlatformError.PlatformError>;
 }
 
-export class Service extends Context.Tag(moduleTag + "Service")<
-	Service,
-	ServiceInterface
->() {}
+export class Service extends Context.Tag(moduleTag + 'Service')<Service, ServiceInterface>() {}
 
 export const layer = Layer.effect(
 	Service,
@@ -413,21 +386,17 @@ export const layer = Layer.effect(
 		const fs = yield* pipe(PlatformNodeFsService);
 		const nPath = yield* pipe(NPath.Service);
 
-		const stat: ServiceInterface["stat"] = fs.stat as never;
+		const stat: ServiceInterface['stat'] = fs.stat as never;
 
-		const readDirectory: ServiceInterface["readDirectory"] = (path) =>
-			fs.readDirectory(path) as Effect.Effect<
-				ReadonlyArray<MFs.Name>,
-				PlatformError.PlatformError
-			>;
+		const readDirectory: ServiceInterface['readDirectory'] = (path) =>
+			fs.readDirectory(path) as Effect.Effect<ReadonlyArray<MFs.Name>, PlatformError.PlatformError>;
 
-		const realPath: ServiceInterface["realPath"] = <T extends MFs.Path>(
-			path: T,
-		) => fs.realPath(path) as Effect.Effect<T, PlatformError.PlatformError>;
+		const realPath: ServiceInterface['realPath'] = <T extends MFs.Path>(path: T) =>
+			fs.realPath(path) as Effect.Effect<T, PlatformError.PlatformError>;
 
-		const readDirectoryWithStats: ServiceInterface["readDirectoryWithStats"] = (
+		const readDirectoryWithStats: ServiceInterface['readDirectoryWithStats'] = (
 			path,
-			concurrencyOptions,
+			concurrencyOptions
 		) =>
 			Effect.flatMap(readDirectory(path), (names) =>
 				pipe(
@@ -435,13 +404,11 @@ export const layer = Layer.effect(
 					Array.map((name) =>
 						pipe(
 							stat(nPath.join(path, name)),
-							Effect.map((stat) =>
-								makeExpandedWithStat({ target: name, stat }),
-							),
-						),
+							Effect.map((stat) => makeExpandedWithStat({ target: name, stat }))
+						)
 					),
-					Effect.allWith(concurrencyOptions),
-				),
+					Effect.allWith(concurrencyOptions)
+				)
 			);
 
 		return {
@@ -457,7 +424,7 @@ export const layer = Layer.effect(
 							const realNextSeeds = yield* pipe(
 								nextSeeds,
 								Array.map(realPath),
-								Effect.allWith(concurrencyOptions),
+								Effect.allWith(concurrencyOptions)
 							);
 							const newParents = yield* pipe(
 								realNextSeeds,
@@ -468,24 +435,22 @@ export const layer = Layer.effect(
 										Option.map((duplicates) =>
 											pipe(
 												PlatformError.SystemError({
-													reason: "BadResource",
+													reason: 'BadResource',
 													pathOrDescriptor: path,
-													module: "FileSystem",
-													method: "glob",
-													message: `Circularity detected. Following paths are cycling: ${Array.join(duplicates, ", ")}`,
-												}),
-											),
-										),
-									),
+													module: 'FileSystem',
+													method: 'glob',
+													message: `Circularity detected. Following paths are cycling: ${Array.join(duplicates, ', ')}`
+												})
+											)
+										)
+									)
 								),
-								Either.map(Array.appendAll(parents)),
+								Either.map(Array.appendAll(parents))
 							);
 							const namesWithStatArray = yield* pipe(
 								nextSeeds,
-								Array.map((nextSeed) =>
-									readDirectoryWithStats(nextSeed, concurrencyOptions),
-								),
-								Effect.allWith(concurrencyOptions),
+								Array.map((nextSeed) => readDirectoryWithStats(nextSeed, concurrencyOptions)),
+								Effect.allWith(concurrencyOptions)
 							);
 							return pipe(
 								namesWithStatArray,
@@ -493,9 +458,9 @@ export const layer = Layer.effect(
 									Array.map(namesWithStat, (nameWithStat) => {
 										return makeExpandedWithStat({
 											...nameWithStat,
-											target: nPath.join(nextSeed, nameWithStat.target),
+											target: nPath.join(nextSeed, nameWithStat.target)
 										});
-									}),
+									})
 								),
 								Array.flatten,
 								Array.partition(isFolderPathWithStat),
@@ -503,22 +468,14 @@ export const layer = Layer.effect(
 									onFirst: Chunk.fromIterable,
 									onSecond: flow(
 										Array.filterMap(
-											flow(
-												Struct.get("target"),
-												Option.liftPredicate(Predicate.not(excludeDir)),
-											),
+											flow(Struct.get('target'), Option.liftPredicate(Predicate.not(excludeDir)))
 										),
 										Option.liftPredicate(MTypes.isOverOne),
-										Option.map(
-											flow(
-												MTuple.fromSingleValue,
-												Tuple.appendElement(newParents),
-											),
-										),
-									),
-								}),
+										Option.map(flow(MTuple.fromSingleValue, Tuple.appendElement(newParents)))
+									)
+								})
 							);
-						}),
+						})
 				),
 			readDirectoriesUpwardWhile: ({ concurrencyOptions, isTargetDir, path }) =>
 				pipe(
@@ -529,37 +486,24 @@ export const layer = Layer.effect(
 							Effect.map(
 								Predicate.or(
 									MFunction.strictEquals(nPath.homeDir),
-									MFunction.strictEquals(nPath.rootDir),
-								),
-							),
-						),
+									MFunction.strictEquals(nPath.rootDir)
+								)
+							)
+						)
 					),
 					Stream.mapEffect((currentPath) =>
 						pipe(
 							readDirectoryWithStats(currentPath, concurrencyOptions),
 							Effect.flatMap(
-								flow(
-									MTuple.fromSingleValue,
-									MTuple.prependElement(currentPath),
-									isTargetDir,
-								),
+								flow(MTuple.fromSingleValue, MTuple.prependElement(currentPath), isTargetDir)
 							),
-							Effect.map(
-								flow(
-									MTuple.fromSingleValue,
-									MTuple.prependElement(currentPath),
-								),
-							),
-						),
+							Effect.map(flow(MTuple.fromSingleValue, MTuple.prependElement(currentPath)))
+						)
 					),
 					Stream.takeUntil(Tuple.getSecond),
 					Stream.runLast,
-					Effect.flatMap(
-						Option.flatMap(
-							Option.liftPredicate(([_, isTargetDir]) => isTargetDir),
-						),
-					),
-					Effect.map(Tuple.getFirst),
+					Effect.flatMap(Option.flatMap(Option.liftPredicate(([_, isTargetDir]) => isTargetDir))),
+					Effect.map(Tuple.getFirst)
 				),
 			access: fs.access,
 			copy: fs.copy,
@@ -569,13 +513,11 @@ export const layer = Layer.effect(
 			exists: fs.exists,
 			link: fs.link,
 			makeDirectory: fs.makeDirectory,
-			makeTempDirectory:
-				fs.makeTempDirectory as ServiceInterface["makeTempDirectory"],
+			makeTempDirectory: fs.makeTempDirectory as ServiceInterface['makeTempDirectory'],
 			makeTempDirectoryScoped:
-				fs.makeTempDirectoryScoped as ServiceInterface["makeTempDirectoryScoped"],
-			makeTempFile: fs.makeTempFile as ServiceInterface["makeTempFile"],
-			makeTempFileScoped:
-				fs.makeTempFileScoped as ServiceInterface["makeTempFileScoped"],
+				fs.makeTempDirectoryScoped as ServiceInterface['makeTempDirectoryScoped'],
+			makeTempFile: fs.makeTempFile as ServiceInterface['makeTempFile'],
+			makeTempFileScoped: fs.makeTempFileScoped as ServiceInterface['makeTempFileScoped'],
 			open: fs.open,
 			readFile: fs.readFile,
 			readFileString: fs.readFileString,
@@ -589,13 +531,9 @@ export const layer = Layer.effect(
 			utimes: fs.utimes,
 			watch: fs.watch,
 			writeFile: fs.writeFile,
-			writeFileString: fs.writeFileString,
+			writeFileString: fs.writeFileString
 		};
-	}),
+	})
 );
 
-export const live = pipe(
-	layer,
-	Layer.provide(PlatformNodeFsLive),
-	Layer.provide(NPath.live),
-);
+export const live = pipe(layer, Layer.provide(PlatformNodeFsLive), Layer.provide(NPath.live));

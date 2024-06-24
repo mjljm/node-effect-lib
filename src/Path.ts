@@ -1,11 +1,10 @@
-import { MFs } from "#mjljm/effect-lib";
-import * as PlatformNodePath from "@effect/platform-node/NodePath";
-import { BadArgument } from "@effect/platform/Error";
-import * as PlatformPath from "@effect/platform/Path";
-import { Context, Effect, Layer, flow, pipe } from "effect";
-import { homedir } from "node:os";
+import { MFs } from '#mjljm/effect-lib';
+import { Error as PlatformError, Path as PlatformPath } from '@effect/platform';
+import { NodePath as PlatformNodePath } from '@effect/platform-node';
+import { Context, Effect, Layer, flow, pipe } from 'effect';
+import { homedir } from 'node:os';
 
-const moduleTag = "@mjljm/node-effect-lib/NPath/";
+const moduleTag = '@mjljm/node-effect-lib/NPath/';
 
 const PlatformNodePathService = PlatformPath.Path;
 
@@ -39,11 +38,7 @@ export interface ServiceInterface {
 	 */
 	readonly join: {
 		<TN extends MFs.Name>(
-			...paths: readonly [
-				p1: MFs.Folderpath,
-				...ps: ReadonlyArray<MFs.Foldername>,
-				pn: TN,
-			]
+			...paths: readonly [p1: MFs.Folderpath, ...ps: ReadonlyArray<MFs.Foldername>, pn: TN]
 		): MFs.ToPath<TN>;
 		(...paths: ReadonlyArray<string>): string;
 	};
@@ -52,10 +47,7 @@ export interface ServiceInterface {
 	 * Used to convert a path to an absolute path. If lastSegment isn't already absolute, previousSegments are prepended in right to left order, until an absolute path is found. If after using all previousSegments paths still no absolute path is found, the current working directory is used as well. The resulting path is normalized, and trailing slashes are removed unless the path gets resolved to the root directory.
 	 */
 	readonly resolve: <T extends MFs.Path>(
-		...paths: readonly [
-			...leftPaths: ReadonlyArray<MFs.Folderpath>,
-			rightPath: T,
-		]
+		...paths: readonly [...leftPaths: ReadonlyArray<MFs.Folderpath>, rightPath: T]
 	) => T;
 
 	/**
@@ -104,14 +96,11 @@ export interface ServiceInterface {
 	 * The platform-specific file separator. '\\' or '/'.
 	 */
 	readonly sep: string;
-	readonly fromFileUrl: (url: URL) => Effect.Effect<MFs.Filepath, BadArgument>;
-	readonly toFileUrl: (path: MFs.Path) => Effect.Effect<URL, BadArgument>;
+	readonly fromFileUrl: (url: URL) => Effect.Effect<MFs.Filepath, PlatformError.BadArgument>;
+	readonly toFileUrl: (path: MFs.Path) => Effect.Effect<URL, PlatformError.BadArgument>;
 }
 
-export class Service extends Context.Tag(moduleTag + "Service")<
-	Service,
-	ServiceInterface
->() {}
+export class Service extends Context.Tag(moduleTag + 'Service')<Service, ServiceInterface>() {}
 
 export const layer = Layer.effect(
 	Service,
@@ -123,7 +112,7 @@ export const layer = Layer.effect(
 
 		const currentDirectory = MFs.Folderpath(currentDirectoryStr);
 		const homeDir = MFs.Folderpath(homeDirStr);
-		const parse: ServiceInterface["parse"] = <T extends MFs.Path>(p: T) =>
+		const parse: ServiceInterface['parse'] = <T extends MFs.Path>(p: T) =>
 			path.parse(p) as Parsed<MFs.ToName<T>>;
 		const rootDir = parse(homeDir).root;
 
@@ -133,27 +122,22 @@ export const layer = Layer.effect(
 			rootDir,
 			join: (...paths: ReadonlyArray<string>) => path.join(...paths) as never,
 			resolve: <T extends MFs.Path>(
-				...paths: readonly [
-					...leftPaths: ReadonlyArray<MFs.Folderpath>,
-					rightPath: T,
-				]
+				...paths: readonly [...leftPaths: ReadonlyArray<MFs.Folderpath>, rightPath: T]
 			) => path.resolve(...paths) as T,
-			relative: <T extends MFs.Path>(from: MFs.Path, to: T) =>
-				path.relative(from, to) as T,
+			relative: <T extends MFs.Path>(from: MFs.Path, to: T) => path.relative(from, to) as T,
 			dirname: flow(path.dirname, MFs.Folderpath),
 			basename: <T extends MFs.Path>(p: T) => path.basename(p) as MFs.ToName<T>,
 			extname: path.extname,
 			normalize: <T extends MFs.Path>(p: T) => path.normalize(p) as T,
 			parse,
-			format: <T extends MFs.Name>(p: Parsed<T>) =>
-				path.format(p) as MFs.ToPath<T>,
+			format: <T extends MFs.Name>(p: Parsed<T>) => path.format(p) as MFs.ToPath<T>,
 			isAbsolute: path.isAbsolute,
 			sep: path.sep,
 			fromFileUrl: (url) =>
-				path.fromFileUrl(url) as Effect.Effect<MFs.Filepath, BadArgument>,
-			toFileUrl: path.toFileUrl,
+				path.fromFileUrl(url) as Effect.Effect<MFs.Filepath, PlatformError.BadArgument>,
+			toFileUrl: path.toFileUrl
 		};
-	}),
+	})
 );
 
 export const live = pipe(layer, Layer.provide(PlatformNodePathLive));

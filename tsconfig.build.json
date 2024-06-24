@@ -2,7 +2,7 @@
 	"extends": "./tsconfig.src.json",
 	"compilerOptions": {
 		"rootDir": "src",
-		"tsBuildInfoFile": "dist/.tsbuildinfo/build.tsbuildinfo",
+		"tsBuildInfoFile": ".tsbuildinfo/build.tsbuildinfo",
 		"declarationDir": "dist/dts",
 		"declarationMap": true
 	}

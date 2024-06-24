@@ -4,7 +4,7 @@
 	"compilerOptions": {
 		"rootDir": ".",
 		"outDir": "dist/esm",
-		"tsBuildInfoFile": "dist/.tsbuildinfo/src.tsbuildinfo",
+		"tsBuildInfoFile": ".tsbuildinfo/src.tsbuildinfo",
 		"lib": ["ESNext"]
 	}
 }

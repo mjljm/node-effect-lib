@@ -31,9 +31,9 @@
 		"transpile-annotate": "babel dist --plugins annotate-pure-calls --out-dir dist --source-maps",
 		"generate-types": "tsc -b tsconfig.build.json --emitDeclarationOnly",
 		"cp-public": "shx cp -r public ./dist/public/",
-		"clean-dist": "shx rm -rf dist",
+		"clean-dist": "shx rm -rf dist && shx rm -rf .tsbuildinfo",
 		"build": "pnpm transpile-esm && pnpm transpile-cjs && pnpm transpile-annotate",
-		"register": "pnpm publish dist"
+		"register": "pnpm publish --access public dist"
 	},
 	"exports": {
 		"./public/*": {
