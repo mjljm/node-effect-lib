@@ -1,9 +1,0 @@
-{
-	"extends": "./tsconfig.src.json",
-	"compilerOptions": {
-		"rootDir": "src",
-		"tsBuildInfoFile": ".tsbuildinfo/build.tsbuildinfo",
-		"declarationDir": "dist/dts",
-		"declarationMap": true
-	}
-}

@@ -33,9 +33,9 @@ export default {
 	'.gitignore': ConfigManager.GitIgnore,
 	'.prettierignore': ConfigManager.PrettierIgnore,
 	'tsconfig.src.json': ConfigManager.TsConfigSrcLibrary,
-	'tsconfig.others.json': ConfigManager.TsConfigOthersNode,
+	'tsconfig.others.json': ConfigManager.TsConfigOthers,
 	'tsconfig.json': ConfigManager.TsConfigAll,
-	'tsconfig.build.json': ConfigManager.TsConfigBuild,
+	'tsconfig.check.json': ConfigManager.TsConfigCheck,
 	'eslint.config.js': ConfigManager.EslintConfigLibraryTemplate,
 	'vite.config.ts': 'export default {};',
 	'package.json': packageJson
