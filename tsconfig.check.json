@@ -1,31 +1,9 @@
 {
 	"extends": "@mjljm/configs-manager/public/tsconfig.base.json",
-	"include": [
-		"**/*.ts",
-		"**/*.mts",
-		"**/*.cts",
-		"**/*.js",
-		"**/*.mjs",
-		"**/*.cjs"
+	"include": [],
+	"references": [
+		{ "path": "./tsconfig.src.json" },
+		{ "path": "./tsconfig.others.json" }
 	],
-	"exclude": [
-		"node_modules/**/*.ts",
-		"node_modules/**/*.mts",
-		"node_modules/**/*.cts",
-		"node_modules/**/*.js",
-		"node_modules/**/*.mjs",
-		"node_modules/**/*.cjs",
-		"dist/**/*.ts",
-		"dist/**/*.mts",
-		"dist/**/*.cts",
-		"dist/**/*.js",
-		"dist/**/*.mjs",
-		"dist/**/*.cjs"
-	],
-	"compilerOptions": {
-		"rootDir": ".",
-		"tsBuildInfoFile": ".tsbuildinfo/check.tsbuildinfo",
-		"outDir": "dist/check",
-		"noEmit": true
-	}
+	"compilerOptions": { "noEmit": true }
 }
