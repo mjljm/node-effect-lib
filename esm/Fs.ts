@@ -1,5 +1,5 @@
-import { MFs, MFunction, MPredicate, MTuple, MTypes } from '#mjljm/effect-lib';
-import * as NPath from '#src/Path';
+import { MFs, MFunction, MPredicate, MTuple, MTypes } from '#parischap/effect-lib';
+import * as NPath from '#project/Path';
 import { Error as PlatformError, FileSystem as PlatformFs } from '@effect/platform';
 import { NodeFileSystem as PlatformNodeFs } from '@effect/platform-node';
 
@@ -24,7 +24,7 @@ import {
 
 import { Concurrency } from 'effect/Types';
 
-const moduleTag = '@mjljm/node-effect-lib/NFs/';
+const moduleTag = '@parischap/node-effect-lib/NFs/';
 
 const PlatformNodeFsService = PlatformFs.FileSystem;
 const PlatformNodeFsLive = PlatformNodeFs.layer;
