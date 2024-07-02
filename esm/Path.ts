@@ -1,6 +1,6 @@
-import { MFs } from '#parischap/effect-lib';
 import { Error as PlatformError, Path as PlatformPath } from '@effect/platform';
 import { NodePath as PlatformNodePath } from '@effect/platform-node';
+import { MFs } from '@parischap/effect-lib';
 import { Context, Effect, Layer, flow, pipe } from 'effect';
 import { homedir } from 'node:os';
 

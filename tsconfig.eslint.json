@@ -1,8 +1,8 @@
 {
-	"extends": "@mjljm/configs-manager/public/tsconfig.base.json",
+	"extends": "@parischap/configs-manager/public/tsconfig.base.json",
 	"include": [],
 	"references": [
-		{ "path": "./tsconfig.src.json" },
+		{ "path": "./tsconfig.esm.json" },
 		{ "path": "./tsconfig.others.json" }
 	],
 	"compilerOptions": { "noEmit": true }

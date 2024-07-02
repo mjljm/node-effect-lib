@@ -1,5 +1,5 @@
 {
-	"extends": "@mjljm/configs-manager/public/tsconfig.base.json",
+	"extends": "@parischap/configs-manager/public/tsconfig.base.json",
 	"include": [
 		"**/*.ts",
 		"**/*.mts",
@@ -9,9 +9,9 @@
 		"**/*.cjs"
 	],
 	"exclude": [
-		"src/**/*.ts",
-		"src/**/*.mts",
-		"src/**/*.cts",
+		"esm/**/*.ts",
+		"esm/**/*.mts",
+		"esm/**/*.cts",
 		"**/node_modules/**/*.ts",
 		"**/node_modules/**/*.mts",
 		"**/node_modules/**/*.cts",

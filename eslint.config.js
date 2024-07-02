@@ -1,3 +1,3 @@
-import { EslintConfigLibrary } from '@mjljm/configs-manager';
+import { eslintConfigLibrary } from '@parischap/configs-manager';
 
-export default EslintConfigLibrary;
+export default eslintConfigLibrary;
